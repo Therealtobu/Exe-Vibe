@@ -12,8 +12,6 @@ local PlayerGui    = LocalPlayer:WaitForChild("PlayerGui")
 E.UI = E.UI or {}
 local UI = E.UI
 
--- Lookup table: page name -> UIScale instance (for pop-in animation)
-local pageScales = {}
 
 local cam       = workspace.CurrentCamera
 local vp        = cam.ViewportSize
@@ -304,10 +302,9 @@ local function makePage(name)
     page.BorderSizePixel  = 0
     page.Visible          = false
     page.ZIndex           = 12
-    -- UIScale used for Loader-style pop-in animation
-    local sc = Instance.new("UIScale", page)
-    sc.Scale = 1
-    -- stored in pageScales table (not as Instance property)
+    -- UIScale child used by Controls.lua:popInPage via FindFirstChildOfClass
+    local _sc = Instance.new("UIScale", page)
+    _sc.Scale = 1
 
     local sf = Instance.new("ScrollingFrame", page)
     sf.Name             = "ScrollFrame"
@@ -330,14 +327,12 @@ local function makePage(name)
     pad.PaddingBottom = UDim.new(0,10)
     pad.PaddingTop    = UDim.new(0,4)
 
-    return page, sf, sc
+    return page, sf
 end
 
 -- ============================================================
 --  DISCOVERY PAGE
 -- ============================================================
-local DiscoveryPage, DiscoveryScroll, DiscoverySc = makePage("DiscoveryPage")
-pageScales["Discovery"] = DiscoverySc
 UI.DiscoveryPage   = DiscoveryPage
 UI.DiscoveryScroll = DiscoveryScroll
 
@@ -530,8 +525,6 @@ end
 -- ============================================================
 --  SEARCH PAGE
 -- ============================================================
-local SearchPage, SearchScroll, SearchSc = makePage("SearchPage")
-pageScales["Search"] = SearchSc
 UI.SearchPage   = SearchPage
 UI.SearchScroll = SearchScroll
 
@@ -794,11 +787,8 @@ end)
 -- ============================================================
 --  LIBRARY PAGE
 -- ============================================================
-local LibraryPage, LibraryScroll, LibrarySc = makePage("LibraryPage")
-pageScales["Library"] = LibrarySc
 UI.LibraryPage   = LibraryPage
 UI.LibraryScroll = LibraryScroll
-UI.pageScales    = pageScales
 
 local LibHeaderRow = Instance.new("Frame", LibraryScroll)
 LibHeaderRow.Size = UDim2.new(1,0,0,30)

@@ -236,9 +236,9 @@ local pages = {
 }
 
 -- Pop-in: scale 1.04→1.0 + Exponential easing (from Loader.lua)
-local function popInPage(page, pageName)
+local function popInPage(page)
     if not page then return end
-    local sc = UI.pageScales and UI.pageScales[pageName]
+    local sc = page:FindFirstChildOfClass("UIScale")
     if sc then
         sc.Scale = 1.04
         TweenService:Create(sc,
@@ -278,7 +278,7 @@ local function navigateTo(pageName)
     local target = pages[pageName]
     if target then
         target.Visible = true
-        popInPage(target, pageName)
+        popInPage(target)
     end
 
     -- Refresh Library when switching to it
