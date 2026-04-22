@@ -1,0 +1,305 @@
+-- ============================================================
+--  Controls.lua  |  Exvibe Music Player  (v3 fixed)
+-- ============================================================
+
+local E   = _G.Exvibe
+local C   = E.COLORS
+local UI  = E.UI
+local Eng = E.Engine
+
+local RunService       = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+-- ============================================================
+--  PLAY SONG
+-- ============================================================
+local function playSong(song)
+    Eng:play(song)
+    E.updatePlayerBar(song)
+    UI.BtnPlay.Text   = "▌▌"
+    UI.NPBtnPlay.Text = "▌▌"
+    if E.State.nowPlayingOpen then
+        E.openNowPlaying(song)
+    end
+end
+E.playSong = playSong
+
+-- ============================================================
+--  NEXT / PREV
+-- ============================================================
+local function nextSong()
+    if not E.State.currentSong then return end
+    for i, s in ipairs(E.MusicDatabase) do
+        if s.id == E.State.currentSong.id then
+            playSong(E.MusicDatabase[i+1] or E.MusicDatabase[1])
+            return
+        end
+    end
+end
+
+local function prevSong()
+    if not E.State.currentSong then return end
+    if Eng:getPosition() > 3 then Eng:seekTo(0) return end
+    for i, s in ipairs(E.MusicDatabase) do
+        if s.id == E.State.currentSong.id then
+            playSong(E.MusicDatabase[i-1] or E.MusicDatabase[#E.MusicDatabase])
+            return
+        end
+    end
+end
+
+-- ============================================================
+--  SONG CARDS
+-- ============================================================
+for songId, card in pairs(UI.songCardMap) do
+    local capturedId = songId
+    card.MouseButton1Click:Connect(function()
+        local song
+        for _, s in ipairs(E.MusicDatabase) do
+            if s.id == capturedId then song = s break end
+        end
+        if song then playSong(song) E.openNowPlaying(song) end
+    end)
+end
+
+-- ============================================================
+--  PLAYER BAR CONTROLS
+-- ============================================================
+local function togglePlayPause()
+    if E.State.isPlaying then
+        Eng:pause()
+        UI.BtnPlay.Text   = "▶"
+        UI.NPBtnPlay.Text = "▶"
+    elseif E.State.isPaused then
+        Eng:resume()
+        UI.BtnPlay.Text   = "▌▌"
+        UI.NPBtnPlay.Text = "▌▌"
+    elseif E.State.currentSong then
+        playSong(E.State.currentSong)
+    end
+end
+
+UI.BtnPlay.MouseButton1Click:Connect(togglePlayPause)
+UI.BtnNext.MouseButton1Click:Connect(nextSong)
+UI.BtnPrev.MouseButton1Click:Connect(prevSong)
+
+-- ============================================================
+--  NOW-PLAYING CONTROLS
+-- ============================================================
+UI.NPBtnPlay.MouseButton1Click:Connect(togglePlayPause)
+UI.NPBtnNext.MouseButton1Click:Connect(nextSong)
+UI.NPBtnPrev.MouseButton1Click:Connect(prevSong)
+
+local repeatOn = false
+UI.NPRepeatBtn.MouseButton1Click:Connect(function()
+    repeatOn = not repeatOn
+    E.tween(UI.NPRepeatBtn, {
+        BackgroundColor3 = repeatOn and C.accentBlue or C.card
+    }, 0.15)
+    UI.NPRepeatBtn.TextColor3 = repeatOn and Color3.new(1,1,1) or C.subText
+end)
+
+local shuffleOn = false
+UI.NPShuffleBtn.MouseButton1Click:Connect(function()
+    shuffleOn = not shuffleOn
+    E.tween(UI.NPShuffleBtn, {
+        BackgroundColor3 = shuffleOn and C.accentBlue or C.card
+    }, 0.15)
+    UI.NPShuffleBtn.TextColor3 = shuffleOn and Color3.new(1,1,1) or C.subText
+end)
+
+UI.PlayerThumb.InputBegan:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1
+    and E.State.currentSong then
+        E.openNowPlaying(E.State.currentSong)
+    end
+end)
+
+UI.BtnQueue.MouseButton1Click:Connect(function()
+    if E.State.currentSong then E.openNowPlaying(E.State.currentSong) end
+end)
+
+-- ============================================================
+--  WINDOW  OPEN / CLOSE
+-- ============================================================
+local windowOpen = false
+local FRAME_W  = E.FRAME_W  or 760
+local FRAME_H  = E.FRAME_H  or 470
+local Y_OFFSET = 40    -- px below center to clear Roblox chat
+
+local function openWindow()
+    windowOpen = true
+    UI.ToggleBtn.Visible = false
+    UI.Backdrop.Visible  = true
+    UI.Backdrop.BackgroundTransparency = 1
+    E.tween(UI.Backdrop, {BackgroundTransparency = 0.45}, 0.30, Enum.EasingStyle.Quint)
+    UI.MainFrame.Visible = true
+    UI.MainFrame.BackgroundTransparency = 1
+    UI.MainFrame.Position = UDim2.new(0.5, -FRAME_W/2, 0.5, -FRAME_H/2 + Y_OFFSET + 20)
+    E.tween(UI.MainFrame, {
+        BackgroundTransparency = 0,
+        Position = UDim2.new(0.5, -FRAME_W/2, 0.5, -FRAME_H/2 + Y_OFFSET)
+    }, 0.38, Enum.EasingStyle.Quint)
+    E.tween(UI.navButtons["Discovery"] or next(UI.navButtons),
+        {BackgroundColor3 = C.card, TextColor3 = C.text}, 0.15)
+end
+
+local function closeWindow()
+    windowOpen = false
+    UI.NowPlaying.Visible  = false
+    E.State.nowPlayingOpen = false
+    E.tween(UI.Backdrop, {BackgroundTransparency = 1}, 0.26, Enum.EasingStyle.Quint)
+    local t = E.tween(UI.MainFrame, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0.5, -FRAME_W/2, 0.5, -FRAME_H/2 + Y_OFFSET + 20)
+    }, 0.28, Enum.EasingStyle.Quint)
+    t.Completed:Connect(function()
+        UI.MainFrame.Visible = false
+        UI.Backdrop.Visible  = false
+        UI.ToggleBtn.BackgroundTransparency = 1
+        UI.ToggleBtn.Visible = true
+        E.tween(UI.ToggleBtn, {BackgroundTransparency = 0}, 0.22, Enum.EasingStyle.Quint)
+    end)
+end
+
+UI.ToggleBtn.MouseButton1Click:Connect(function()
+    if windowOpen then closeWindow() else openWindow() end
+end)
+UI.CloseBtn.MouseButton1Click:Connect(closeWindow)
+
+UI.ToggleBtn.MouseEnter:Connect(function()
+    E.tween(UI.ToggleBtn, {BackgroundColor3 = Color3.fromRGB(110,160,255)}, 0.15)
+end)
+UI.ToggleBtn.MouseLeave:Connect(function()
+    E.tween(UI.ToggleBtn, {BackgroundColor3 = C.accentBlue}, 0.15)
+end)
+
+-- ============================================================
+--  HAMBURGER SIDEBAR TOGGLE  (ContentArea height = BAR_H correct)
+-- ============================================================
+local BAR_H    = E.BAR_H    or 58
+local SIDEBAR_W_FULL = E.SIDEBAR_W or math.floor(FRAME_W * 0.26)
+
+UI.HamBtn.MouseButton1Click:Connect(function()
+    E.State.sidebarOpen = not E.State.sidebarOpen
+    local newSbW = E.State.sidebarOpen and SIDEBAR_W_FULL or 0
+    E.tween(UI.Sidebar,     {Size = UDim2.new(0, newSbW, 1, 0)}, 0.26)
+    E.tween(UI.ContentArea, {
+        Size     = UDim2.new(1, -newSbW, 1, -BAR_H),
+        Position = UDim2.new(0, newSbW, 0, 0)
+    }, 0.26)
+end)
+
+-- ============================================================
+--  SIDEBAR NAVIGATION
+-- ============================================================
+local function navigateTo(page)
+    E.State.currentPage = page
+    UI.PageTitle.Text   = page
+    for name, btn in pairs(UI.navButtons) do
+        if name == page then
+            E.tween(btn, {BackgroundColor3 = C.card,    TextColor3 = C.text},    0.14)
+        else
+            E.tween(btn, {BackgroundColor3 = C.sidebar, TextColor3 = C.subText}, 0.14)
+        end
+    end
+    local onDisc = (page == "Discovery")
+    UI.SongsSec.Visible  = onDisc
+    UI.ArtistSec.Visible = onDisc
+end
+
+for name, btn in pairs(UI.navButtons) do
+    local capturedName = name
+    btn.MouseButton1Click:Connect(function() navigateTo(capturedName) end)
+end
+navigateTo("Discovery")
+
+-- ============================================================
+--  DRAG MAIN WINDOW
+-- ============================================================
+local dragging, dragStart, frameStart = false
+
+UI.TopBar.InputBegan:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging   = true
+        dragStart  = inp.Position
+        frameStart = UI.MainFrame.Position
+    end
+end)
+UserInputService.InputEnded:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+end)
+UserInputService.InputChanged:Connect(function(inp)
+    if dragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
+        local d = inp.Position - dragStart
+        UI.MainFrame.Position = UDim2.new(
+            frameStart.X.Scale, frameStart.X.Offset + d.X,
+            frameStart.Y.Scale, frameStart.Y.Offset + d.Y)
+    end
+end)
+
+-- ============================================================
+--  PROGRESS BAR  (Heartbeat)
+-- ============================================================
+RunService.Heartbeat:Connect(function()
+    if not (E.State.isPlaying and E.State.currentSong) then return end
+    local p = Eng:getProgress()
+    E.tween(UI.ProgFill, {Size = UDim2.new(p,0,1,0)}, 0.5, Enum.EasingStyle.Linear)
+    if E.State.nowPlayingOpen then
+        E.tween(UI.NPProgFill, {Size = UDim2.new(p,0,1,0)}, 0.5, Enum.EasingStyle.Linear)
+        if UI.NPProgDot then
+            E.tween(UI.NPProgDot, {Position = UDim2.new(p,-6,0.5,-6)}, 0.5, Enum.EasingStyle.Linear)
+        end
+        UI.NPTimeCurrent.Text = E.formatTime(Eng:getPosition())
+    end
+end)
+
+-- Progress seek (player bar)
+UI.ProgFill.Parent.InputBegan:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+        local bx   = UI.ProgFill.Parent.AbsolutePosition.X
+        local bw   = UI.ProgFill.Parent.AbsoluteSize.X
+        Eng:seekTo(math.clamp((inp.Position.X - bx) / bw, 0, 1))
+    end
+end)
+
+-- Progress seek (now-playing sheet)
+UI.NPProgBg.InputBegan:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+        local bx   = UI.NPProgBg.AbsolutePosition.X
+        local bw   = UI.NPProgBg.AbsoluteSize.X
+        Eng:seekTo(math.clamp((inp.Position.X - bx) / bw, 0, 1))
+    end
+end)
+
+-- ============================================================
+--  AUTO-ADVANCE
+-- ============================================================
+local repeatOn_ref = function() return repeatOn end   -- captured below
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if E.State.isPlaying and E.State.currentSong then
+            local dur = Eng:getDuration()
+            if dur > 0 and Eng:getPosition() >= dur - 0.5 then
+                if repeatOn then Eng:seekTo(0) else nextSong() end
+            end
+        end
+    end
+end)
+
+-- ============================================================
+--  KEYBOARD SHORTCUTS
+-- ============================================================
+UserInputService.InputBegan:Connect(function(inp, gpe)
+    if gpe then return end
+    if inp.KeyCode == Enum.KeyCode.Space then
+        togglePlayPause()
+    elseif inp.KeyCode == Enum.KeyCode.Right then
+        if E.State.currentSong then Eng.sound.TimePosition = Eng:getPosition() + 5 end
+    elseif inp.KeyCode == Enum.KeyCode.Left then
+        if E.State.currentSong then Eng.sound.TimePosition = math.max(0, Eng:getPosition() - 5) end
+    end
+end)
+
+print("[Exvibe] Controls loaded")
