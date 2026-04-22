@@ -145,14 +145,19 @@ end
 -- Wrap openNowPlaying
 local _origOpenNP = E.openNowPlaying
 function E.openNowPlaying(song)
+    local wasOpen = E.State.nowPlayingOpen
     _origOpenNP(song)
-    -- Enable world blur
-    BlurFX.Enabled = true
-    TS:Create(BlurFX,
-        TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-        {Size = 22}
-    ):Play()
-    startBeatSync()
+
+    if not wasOpen then
+        -- Fresh open: start world blur + beat sync
+        BlurFX.Enabled = true
+        TS:Create(BlurFX,
+            TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+            {Size = 22}
+        ):Play()
+        startBeatSync()
+    end
+    -- Always smoothly tween to the new song's accent color
     if not song then return end
     local ac = song.accentColor
         or E.ARTIST_COLORS[((song.id - 1) % #E.ARTIST_COLORS) + 1]
@@ -444,20 +449,25 @@ end
 
 -- ============================================================
 --  SECTION 3 – REPEAT & SHUFFLE  (enhanced)
+--  Toggle = opacity only (not blue) — matches UI_NowPlaying pills
 -- ============================================================
 E.State.repeatMode  = false
 E.State.shuffleMode = false
 
+local TOGGLE_TRANS_OFF = 0.82
+local TOGGLE_TRANS_ON  = 0.28
+
 local function refreshRepeatUI()
-    UI.NPRepeatBtn.BackgroundColor3 = E.State.repeatMode and C.accentBlue or C.card
-    UI.NPRepeatBtn.TextColor3       = E.State.repeatMode and Color3.new(1,1,1) or C.subText
+    if UI.repPill then
+        UI.repPill.BackgroundTransparency = E.State.repeatMode and TOGGLE_TRANS_ON or TOGGLE_TRANS_OFF
+    end
 end
 local function refreshShuffleUI()
-    UI.NPShuffleBtn.BackgroundColor3 = E.State.shuffleMode and C.accentBlue or C.card
-    UI.NPShuffleBtn.TextColor3       = E.State.shuffleMode and Color3.new(1,1,1) or C.subText
+    if UI.shuPill then
+        UI.shuPill.BackgroundTransparency = E.State.shuffleMode and TOGGLE_TRANS_ON or TOGGLE_TRANS_OFF
+    end
 end
 
--- These fire IN ADDITION to the simple toggle in Controls.lua; they sync State
 UI.NPRepeatBtn.MouseButton1Click:Connect(function()
     E.State.repeatMode = not E.State.repeatMode
     refreshRepeatUI()

@@ -1,8 +1,10 @@
 -- ============================================================
---  Controls.lua  |  Exvibe Music Player  (v8)
---  - Cover fly-to animation when switching songs
---  - Queue item clicks handled via E.playSong
---  - Repeat/shuffle state in E.State
+--  Controls.lua  |  Exvibe Music Player  (v8.2)
+--  Changes:
+--  - setNPPlayState() manages ImageLabel/text for play/pause btn
+--  - playSong: when NP already open, openNowPlaying handles
+--    content update without re-sliding (fixes stutter)
+--  - animateCoverFly: no extra wait needed since sheet is stable
 -- ============================================================
 
 local E   = _G.Exvibe
@@ -14,18 +16,26 @@ local RunService       = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 -- ============================================================
+--  PLAY/PAUSE BUTTON STATE HELPER
+--  Manages the image icon (pause asset) vs text "▶" fallback
+-- ============================================================
+local function setNPPlayState(playing)
+    if UI.NPBtnPlayImg then
+        UI.NPBtnPlayImg.Visible = playing
+    end
+    UI.NPBtnPlay.Text = playing and "" or "▶"
+end
+
+-- ============================================================
 --  COVER FLY-TO ANIMATION
---  fromAbsPos / fromAbsSize: AbsolutePosition/Size of clicked cover
---  song: the song table
---  npAlreadyOpen: true if NowPlaying sheet is already visible
+--  Since openNowPlaying no longer re-slides when sheet is open,
+--  NPArt.AbsolutePosition is always stable → no stutter.
 -- ============================================================
 function E.animateCoverFly(fromAbsPos, fromAbsSize, song, npAlreadyOpen)
     task.spawn(function()
-        -- If NP was just opened, wait for the sheet to be mostly in place
+        -- Wait for sheet to finish sliding in if it was just opened
         if not npAlreadyOpen then
             task.wait(0.32)
-        else
-            task.wait(0.02)
         end
 
         local npArt = UI.NPArt
@@ -33,19 +43,16 @@ function E.animateCoverFly(fromAbsPos, fromAbsSize, song, npAlreadyOpen)
 
         local toPos = npArt.AbsolutePosition
         local toSz  = npArt.AbsoluteSize
-
-        -- Sanity check: if target is still off-screen, skip animation
         if toSz.X < 10 or toSz.Y < 10 then return end
 
-        -- Clone image that flies from card → album art
         local clone = Instance.new("ImageLabel", UI.ScreenGui)
-        clone.Image           = song.cover or ""
-        clone.Position        = UDim2.new(0, fromAbsPos.X, 0, fromAbsPos.Y)
-        clone.Size            = UDim2.new(0, fromAbsSize.X, 0, fromAbsSize.Y)
+        clone.Image            = song.cover or ""
+        clone.Position         = UDim2.new(0, fromAbsPos.X, 0, fromAbsPos.Y)
+        clone.Size             = UDim2.new(0, fromAbsSize.X, 0, fromAbsSize.Y)
         clone.BackgroundColor3 = C.card
-        clone.BorderSizePixel = 0
-        clone.ZIndex          = 200
-        clone.ScaleType       = Enum.ScaleType.Crop
+        clone.BorderSizePixel  = 0
+        clone.ZIndex           = 200
+        clone.ScaleType        = Enum.ScaleType.Crop
         Instance.new("UICorner", clone).CornerRadius = UDim.new(0, 8)
 
         local t = E.tween(clone, {
@@ -53,25 +60,26 @@ function E.animateCoverFly(fromAbsPos, fromAbsSize, song, npAlreadyOpen)
             Size     = UDim2.new(0, toSz.X,  0, toSz.Y)
         }, 0.46, Enum.EasingStyle.Quint)
 
-        t.Completed:Connect(function()
-            clone:Destroy()
-        end)
+        t.Completed:Connect(function() clone:Destroy() end)
     end)
 end
 
 -- ============================================================
---  PLAY SONG  (master helper)
+--  PLAY SONG
 -- ============================================================
 local function playSong(song)
     Eng:play(song)
     E.updatePlayerBar(song)
-    UI.BtnPlay.Text   = "▌▌"
-    UI.NPBtnPlay.Text = "▌▌"
+    UI.BtnPlay.Text = "▌▌"
+    setNPPlayState(true)
+
+    -- openNowPlaying now handles both "already open" (update only)
+    -- and "fresh open" (slide in) cases
     if E.State.nowPlayingOpen then
         E.openNowPlaying(song)
     end
 end
-E.playSong = playSong   -- expose so queue items can call it
+E.playSong = playSong
 
 -- ============================================================
 --  NEXT / PREV
@@ -79,11 +87,9 @@ E.playSong = playSong   -- expose so queue items can call it
 local function nextSong()
     if not E.State.currentSong then return end
     local db = E.MusicDatabase
-    -- Shuffle
     if E.State.shuffleOn then
         local idx = math.random(1, #db)
-        playSong(db[idx])
-        return
+        playSong(db[idx]) ; return
     end
     for i, s in ipairs(db) do
         if s.id == E.State.currentSong.id then
@@ -104,7 +110,7 @@ local function prevSong()
 end
 
 -- ============================================================
---  SONG CARDS (Discovery) — click + fly animation
+--  SONG CARDS — click + fly animation
 -- ============================================================
 for songId, card in pairs(UI.songCardMap) do
     local capturedId = songId
@@ -115,7 +121,6 @@ for songId, card in pairs(UI.songCardMap) do
         end
         if not song then return end
 
-        -- Get cover image position from the card
         local artImg = card:FindFirstChildWhichIsA("ImageLabel")
         local fromPos = artImg and artImg.AbsolutePosition or Vector2.new(0,0)
         local fromSz  = artImg and artImg.AbsoluteSize    or Vector2.new(40,40)
@@ -133,12 +138,12 @@ end
 local function togglePlayPause()
     if E.State.isPlaying then
         Eng:pause()
-        UI.BtnPlay.Text   = "▶"
-        UI.NPBtnPlay.Text = "▶"
+        UI.BtnPlay.Text = "▶"
+        setNPPlayState(false)
     elseif E.State.isPaused then
         Eng:resume()
-        UI.BtnPlay.Text   = "▌▌"
-        UI.NPBtnPlay.Text = "▌▌"
+        UI.BtnPlay.Text = "▌▌"
+        setNPPlayState(true)
     elseif E.State.currentSong then
         playSong(E.State.currentSong)
     end
@@ -148,9 +153,6 @@ UI.BtnPlay.MouseButton1Click:Connect(togglePlayPause)
 UI.BtnNext.MouseButton1Click:Connect(nextSong)
 UI.BtnPrev.MouseButton1Click:Connect(prevSong)
 
--- ============================================================
---  NOW-PLAYING CONTROLS
--- ============================================================
 UI.NPBtnPlay.MouseButton1Click:Connect(togglePlayPause)
 UI.NPBtnNext.MouseButton1Click:Connect(nextSong)
 UI.NPBtnPrev.MouseButton1Click:Connect(prevSong)
@@ -170,7 +172,7 @@ UI.BtnQueue.MouseButton1Click:Connect(function()
 end)
 
 -- ============================================================
---  WINDOW  OPEN / CLOSE
+--  WINDOW OPEN / CLOSE
 -- ============================================================
 local windowOpen = false
 local FRAME_W  = E.FRAME_W or 760
@@ -287,7 +289,7 @@ UserInputService.InputChanged:Connect(function(inp)
 end)
 
 -- ============================================================
---  PROGRESS BAR UPDATE  (Heartbeat)
+--  PROGRESS BAR UPDATE
 -- ============================================================
 RunService.Heartbeat:Connect(function()
     if not (E.State.isPlaying and E.State.currentSong) then return end
@@ -302,7 +304,6 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Progress seek (player bar)
 UI.ProgFill.Parent.InputBegan:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.MouseButton1 then
         local bx = UI.ProgFill.Parent.AbsolutePosition.X
@@ -311,7 +312,6 @@ UI.ProgFill.Parent.InputBegan:Connect(function(inp)
     end
 end)
 
--- Progress seek (NowPlaying sheet)
 UI.NPProgBg.InputBegan:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.MouseButton1 then
         local bx = UI.NPProgBg.AbsolutePosition.X
@@ -321,7 +321,7 @@ UI.NPProgBg.InputBegan:Connect(function(inp)
 end)
 
 -- ============================================================
---  AUTO-ADVANCE  (song end → next, respects repeat)
+--  AUTO-ADVANCE
 -- ============================================================
 task.spawn(function()
     while true do
