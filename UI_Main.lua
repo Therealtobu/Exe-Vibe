@@ -333,6 +333,7 @@ end
 -- ============================================================
 --  DISCOVERY PAGE
 -- ============================================================
+local DiscoveryPage, DiscoveryScroll = makePage("DiscoveryPage")
 UI.DiscoveryPage   = DiscoveryPage
 UI.DiscoveryScroll = DiscoveryScroll
 
@@ -525,6 +526,7 @@ end
 -- ============================================================
 --  SEARCH PAGE
 -- ============================================================
+local SearchPage, SearchScroll = makePage("SearchPage")
 UI.SearchPage   = SearchPage
 UI.SearchScroll = SearchScroll
 
@@ -787,6 +789,7 @@ end)
 -- ============================================================
 --  LIBRARY PAGE
 -- ============================================================
+local LibraryPage, LibraryScroll = makePage("LibraryPage")
 UI.LibraryPage   = LibraryPage
 UI.LibraryScroll = LibraryScroll
 
