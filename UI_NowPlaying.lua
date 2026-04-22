@@ -1,8 +1,12 @@
 -- ============================================================
---  UI_NowPlaying.lua  |  Exvibe Music Player  (v3 fixed)
---  Dynamic sizing based on E.FRAME_W / E.FRAME_H.
---  No X button — drag handle only to dismiss.
---  Repeat/Shuffle: icon-only pill buttons (↻ / ⇌).
+--  UI_NowPlaying.lua  |  Exvibe Music Player  (v8)
+--  - Square album art
+--  - Frame-based Repeat icon (no broken unicode box)
+--  - Semi-transparent ghost pill buttons (not solid black)
+--  - Back button = plain "<" text, no background
+--  - Control buttons: rounded pill shape, vertically centered
+--  - Queue item clicks wired up
+--  - Cover fly-to animation support
 -- ============================================================
 
 local E   = _G.Exvibe
@@ -11,36 +15,96 @@ local UI  = E.UI
 local UIS = game:GetService("UserInputService")
 
 -- ============================================================
---  DYNAMIC SIZING  (all values derived from frame dimensions)
+--  DYNAMIC SIZING
 -- ============================================================
 local FW = E.FRAME_W or 760
 local FH = E.FRAME_H or 470
 
-local LEFT_X   = 20
-local LEFT_W   = math.floor(FW * 0.43)          -- left panel width
-local PANEL_Y  = 22                               -- top offset (below drag handle)
-local DIVIDER_X = LEFT_X + LEFT_W + 14
-local RIGHT_X  = DIVIDER_X + 8
-local RIGHT_W  = FW - RIGHT_X - 14
+local LEFT_X    = 20
+local LEFT_W    = math.floor(FW * 0.43)
+local PANEL_Y   = 22
+local DIVIDER_X = LEFT_X + LEFT_W + 12
+local RIGHT_X   = DIVIDER_X + 10
+local RIGHT_W   = FW - RIGHT_X - 16
 
--- Art: square, but shrinks if frame is short
-local ART_PAD  = 28
-local ART_W    = LEFT_W - ART_PAD
-local ART_H    = math.min(ART_W, math.floor((FH - PANEL_Y) * 0.50))
+-- Strict square art, constrained by available height
+local CONTENT_H = FH - PANEL_Y
+local ART_PAD   = 20
+-- Space needed below art: title+artist+gap+prog+time+ctrl+vol + margins ≈ 160
+local BELOW_ART = 160
+local ART_SIZE  = math.min(LEFT_W - ART_PAD, CONTENT_H - 14 - BELOW_ART - 10)
+local ART_X     = math.floor((LEFT_W - ART_SIZE) / 2)  -- centered in left panel
+local INFO_PAD  = math.max(10, ART_X)                  -- horizontal padding for text
 
--- Vertical positions inside LeftPanel (y from LeftPanel top)
-local ART_Y    = 14
-local TITLE_Y  = ART_Y + ART_H + 12
-local ARTIST_Y = TITLE_Y + 22
-local PROG_Y   = ARTIST_Y + 18
-local TIME_Y   = PROG_Y + 8
-local CTRL_Y   = PROG_Y + 30
-local VOL_Y    = CTRL_Y + 58
+-- Vertical positions (y from LeftPanel top)
+local ART_Y    = 12
+local TITLE_Y  = ART_Y + ART_SIZE + 14
+local ARTIST_Y = TITLE_Y + 20
+local PROG_Y   = ARTIST_Y + 19
+local TIME_Y   = PROG_Y + 7
+local CTRL_Y   = TIME_Y + 18
+local VOL_Y    = CTRL_Y + 52
 
-local LEFT_CX  = math.floor(LEFT_W / 2)          -- horizontal center of left panel
+local LEFT_CX = math.floor(LEFT_W / 2)
+
+-- Ghost pill colors
+local GHOST_CLR   = Color3.fromRGB(180, 180, 200)
+local GHOST_TRANS = 0.80     -- default: barely visible
+local GHOST_PRESS = 0.60     -- slightly more opaque when toggled on
 
 -- ============================================================
---  SHEET FRAME  (covers full MainFrame, slides up from bottom)
+--  HELPER: Frame-based Repeat icon (circle + arrow)
+--  Avoids ↻ rendering as a box in Roblox Gotham
+-- ============================================================
+local function makeRepeatIcon(parent, sz, color, zIdx)
+    sz = sz or 34
+    local th = math.max(2, math.floor(sz * 0.10))
+
+    -- Circle ring (UIStroke on transparent rounded frame)
+    local ring = Instance.new("Frame", parent)
+    ring.Size             = UDim2.new(0, sz, 0, sz)
+    ring.Position         = UDim2.new(0.5, -math.floor(sz/2), 0.5, -math.floor(sz/2))
+    ring.BackgroundTransparency = 1
+    ring.BorderSizePixel  = 0
+    ring.ZIndex           = zIdx
+    ring.ClipsDescendants = false
+    Instance.new("UICorner", ring).CornerRadius = UDim.new(1, 0)
+    local stroke = Instance.new("UIStroke", ring)
+    stroke.Color     = color
+    stroke.Thickness = th
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+    -- Arrow head at top-right of circle  (▶ rotated)
+    local arr = Instance.new("TextLabel", parent)
+    arr.Size              = UDim2.new(0, math.floor(sz*0.38), 0, math.floor(sz*0.38))
+    arr.Position          = UDim2.new(0.5, math.floor(sz*0.16), 0.5, -sz)
+    arr.BackgroundTransparency = 1
+    arr.Text              = "▶"
+    arr.Font              = Enum.Font.GothamBold
+    arr.TextSize          = math.floor(sz * 0.30)
+    arr.TextColor3        = color
+    arr.ZIndex            = zIdx + 1
+
+    return ring, arr   -- return so caller can change color
+end
+
+-- ============================================================
+--  HELPER: Ghost pill button (semi-transparent, not solid black)
+-- ============================================================
+local function makeGhostPill(parent, x, y, w, h, cornerR)
+    local f = Instance.new("Frame", parent)
+    f.Size             = UDim2.new(0, w, 0, h)
+    f.Position         = UDim2.new(0, x, 0, y)
+    f.BackgroundColor3 = GHOST_CLR
+    f.BackgroundTransparency = GHOST_TRANS
+    f.BorderSizePixel  = 0
+    f.ZIndex           = 22
+    Instance.new("UICorner", f).CornerRadius = UDim.new(0, cornerR or math.floor(h * 0.45))
+    return f
+end
+
+-- ============================================================
+--  SHEET FRAME
 -- ============================================================
 local Sheet = Instance.new("Frame", UI.MainFrame)
 Sheet.Name             = "NowPlayingSheet"
@@ -55,7 +119,7 @@ Instance.new("UICorner", Sheet).CornerRadius = UDim.new(0,18)
 UI.NowPlaying = Sheet
 
 -- ============================================================
---  DRAG HANDLE  (pill — drag down to dismiss, no X button)
+--  DRAG HANDLE  (pill at top center)
 -- ============================================================
 local DragHandle = Instance.new("Frame", Sheet)
 DragHandle.Size             = UDim2.new(0,44,0,5)
@@ -65,7 +129,6 @@ DragHandle.BorderSizePixel  = 0
 DragHandle.ZIndex           = 21
 Instance.new("UICorner", DragHandle).CornerRadius = UDim.new(1,0)
 
--- Invisible wide hit area for drag gesture
 local DragHit = Instance.new("TextButton", Sheet)
 DragHit.Size             = UDim2.new(1,0,0,24)
 DragHit.Position         = UDim2.new(0,0,0,0)
@@ -92,48 +155,51 @@ LeftPanel.Position         = UDim2.new(0,LEFT_X,0,PANEL_Y)
 LeftPanel.BackgroundTransparency = 1
 LeftPanel.ZIndex           = 21
 
--- Album art  (square-ish, with border like image 2)
+-- Album art — SQUARE (ART_SIZE x ART_SIZE)
 local NPArt = Instance.new("ImageLabel", LeftPanel)
-NPArt.Size             = UDim2.new(0,ART_W,0,ART_H)
-NPArt.Position         = UDim2.new(0,math.floor(ART_PAD/2),0,ART_Y)
+NPArt.Name             = "NPArt"
+NPArt.Size             = UDim2.new(0, ART_SIZE, 0, ART_SIZE)
+NPArt.Position         = UDim2.new(0, ART_X, 0, ART_Y)
 NPArt.BackgroundColor3 = C.card
 NPArt.BorderSizePixel  = 0
+NPArt.ScaleType        = Enum.ScaleType.Crop
 NPArt.ZIndex           = 22
 Instance.new("UICorner", NPArt).CornerRadius = UDim.new(0,14)
 local ArtStroke = Instance.new("UIStroke", NPArt)
 ArtStroke.Color     = C.border
 ArtStroke.Thickness = 1.5
+ArtStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
--- Title
+-- Title (more space below art)
 local NPTitle = Instance.new("TextLabel", LeftPanel)
-NPTitle.Size             = UDim2.new(1,-ART_PAD,0,22)
-NPTitle.Position         = UDim2.new(0,math.floor(ART_PAD/2),0,TITLE_Y)
+NPTitle.Size             = UDim2.new(1,-INFO_PAD*2,0,20)
+NPTitle.Position         = UDim2.new(0,INFO_PAD,0,TITLE_Y)
 NPTitle.BackgroundTransparency = 1
 NPTitle.Text             = "Not Playing"
 NPTitle.TextColor3       = C.text
 NPTitle.Font             = Enum.Font.GothamBold
-NPTitle.TextSize         = 17
+NPTitle.TextSize         = 16
 NPTitle.TextXAlignment   = Enum.TextXAlignment.Left
 NPTitle.TextTruncate     = Enum.TextTruncate.AtEnd
 NPTitle.ZIndex           = 22
 
 -- Artist
 local NPArtist = Instance.new("TextLabel", LeftPanel)
-NPArtist.Size             = UDim2.new(1,-ART_PAD,0,16)
-NPArtist.Position         = UDim2.new(0,math.floor(ART_PAD/2),0,ARTIST_Y)
+NPArtist.Size             = UDim2.new(1,-INFO_PAD*2,0,14)
+NPArtist.Position         = UDim2.new(0,INFO_PAD,0,ARTIST_Y)
 NPArtist.BackgroundTransparency = 1
 NPArtist.Text             = "-"
 NPArtist.TextColor3       = C.subText
 NPArtist.Font             = Enum.Font.Gotham
-NPArtist.TextSize         = 13
+NPArtist.TextSize         = 12
 NPArtist.TextXAlignment   = Enum.TextXAlignment.Left
 NPArtist.ZIndex           = 22
 
--- Progress bar track
+-- Progress bar
 local NPProgBg = Instance.new("Frame", LeftPanel)
-NPProgBg.Size             = UDim2.new(1,-ART_PAD,0,4)
-NPProgBg.Position         = UDim2.new(0,math.floor(ART_PAD/2),0,PROG_Y)
-NPProgBg.BackgroundColor3 = Color3.fromRGB(60,60,72)
+NPProgBg.Size             = UDim2.new(1,-INFO_PAD*2,0,4)
+NPProgBg.Position         = UDim2.new(0,INFO_PAD,0,PROG_Y)
+NPProgBg.BackgroundColor3 = Color3.fromRGB(70,70,84)
 NPProgBg.BorderSizePixel  = 0
 NPProgBg.ZIndex           = 22
 Instance.new("UICorner", NPProgBg).CornerRadius = UDim.new(1,0)
@@ -145,7 +211,6 @@ NPProgFill.BorderSizePixel  = 0
 NPProgFill.ZIndex           = 23
 Instance.new("UICorner", NPProgFill).CornerRadius = UDim.new(1,0)
 
--- Scrubber dot
 local NPProgDot = Instance.new("Frame", NPProgBg)
 NPProgDot.Size             = UDim2.new(0,12,0,12)
 NPProgDot.Position         = UDim2.new(0,-6,0.5,-6)
@@ -154,10 +219,10 @@ NPProgDot.BorderSizePixel  = 0
 NPProgDot.ZIndex           = 24
 Instance.new("UICorner", NPProgDot).CornerRadius = UDim.new(1,0)
 
--- Time labels  (below progress bar)
+-- Time labels
 local NPTimeCurrent = Instance.new("TextLabel", LeftPanel)
-NPTimeCurrent.Size             = UDim2.new(0,44,0,14)
-NPTimeCurrent.Position         = UDim2.new(0,math.floor(ART_PAD/2),0,TIME_Y)
+NPTimeCurrent.Size             = UDim2.new(0,44,0,13)
+NPTimeCurrent.Position         = UDim2.new(0,INFO_PAD,0,TIME_Y)
 NPTimeCurrent.BackgroundTransparency = 1
 NPTimeCurrent.Text             = "0:00"
 NPTimeCurrent.TextColor3       = C.subText
@@ -167,8 +232,8 @@ NPTimeCurrent.TextXAlignment   = Enum.TextXAlignment.Left
 NPTimeCurrent.ZIndex           = 22
 
 local NPTimeTotal = Instance.new("TextLabel", LeftPanel)
-NPTimeTotal.Size             = UDim2.new(0,44,0,14)
-NPTimeTotal.Position         = UDim2.new(1,-ART_PAD-44,0,TIME_Y)
+NPTimeTotal.Size             = UDim2.new(0,44,0,13)
+NPTimeTotal.Position         = UDim2.new(1,-INFO_PAD-44,0,TIME_Y)
 NPTimeTotal.BackgroundTransparency = 1
 NPTimeTotal.Text             = "0:00"
 NPTimeTotal.TextColor3       = C.subText
@@ -178,45 +243,63 @@ NPTimeTotal.TextXAlignment   = Enum.TextXAlignment.Right
 NPTimeTotal.ZIndex           = 22
 
 -- ============================================================
---  PLAYBACK CONTROLS  (◀◀  ▶  ▶▶  centered in left panel)
+--  PLAYBACK CONTROLS  — pill-shaped, centered, vertically aligned
 -- ============================================================
-local function makeNPCtrl(icon, absX, sz)
-    sz = sz or 42
-    local b = Instance.new("TextButton", LeftPanel)
-    b.Size                   = UDim2.new(0,sz,0,sz)
-    b.Position               = UDim2.new(0, absX - math.floor(sz/2), 0, CTRL_Y)
+local CTRL_BTN_H  = 42   -- prev/next height
+local CTRL_PLAY_H = 50   -- play/pause height
+local CTRL_CY     = CTRL_Y + math.floor(CTRL_PLAY_H / 2)  -- common center Y
+
+local function makeCtrlPill(icon, cx, btnW, btnH, tsize)
+    local pill = makeGhostPill(
+        LeftPanel,
+        cx - math.floor(btnW/2),
+        CTRL_CY - math.floor(btnH/2),
+        btnW, btnH,
+        math.floor(btnH * 0.45)
+    )
+
+    local b = Instance.new("TextButton", pill)
+    b.Size                  = UDim2.new(1,0,1,0)
     b.BackgroundTransparency = 1
-    b.AutoButtonColor        = false
-    b.Text                   = icon
-    b.TextColor3             = C.text
-    b.Font                   = Enum.Font.GothamBold
-    b.TextSize               = 24
-    b.ZIndex                 = 22
+    b.AutoButtonColor       = false
+    b.Text                  = icon
+    b.TextColor3            = C.text
+    b.Font                  = Enum.Font.GothamBold
+    b.TextSize              = tsize
+    b.ZIndex                = 23
+
+    -- Subtle press feedback
+    b.MouseButton1Down:Connect(function()
+        pill.BackgroundTransparency = GHOST_PRESS - 0.1
+    end)
+    b.MouseButton1Up:Connect(function()
+        pill.BackgroundTransparency = GHOST_TRANS
+    end)
+
     return b
 end
 
-local NPBtnPrev = makeNPCtrl("◀◀", LEFT_CX - 62)
-local NPBtnPlay = makeNPCtrl("▶",  LEFT_CX,     52)
-NPBtnPlay.TextSize = 32
-local NPBtnNext = makeNPCtrl("▶▶", LEFT_CX + 62)
+local NPBtnPrev = makeCtrlPill("◀◀", LEFT_CX - 58, 46, CTRL_BTN_H,  14)
+local NPBtnPlay = makeCtrlPill("▶",  LEFT_CX,       54, CTRL_PLAY_H, 24)
+local NPBtnNext = makeCtrlPill("▶▶", LEFT_CX + 58,  46, CTRL_BTN_H,  14)
 
 -- ============================================================
---  VOLUME ROW  (- slider +)
+--  VOLUME ROW  ( -  ████░░  + )
 -- ============================================================
 local NPVolLow = Instance.new("TextLabel", LeftPanel)
 NPVolLow.Size             = UDim2.new(0,18,0,18)
-NPVolLow.Position         = UDim2.new(0,math.floor(ART_PAD/2),0,VOL_Y)
+NPVolLow.Position         = UDim2.new(0,INFO_PAD-2,0,VOL_Y)
 NPVolLow.BackgroundTransparency = 1
 NPVolLow.Text             = "-"
-NPVolLow.TextSize         = 17
+NPVolLow.TextSize         = 18
 NPVolLow.Font             = Enum.Font.GothamBold
 NPVolLow.TextColor3       = C.subText
 NPVolLow.ZIndex           = 22
 
 local NPVolBg = Instance.new("Frame", LeftPanel)
-NPVolBg.Size             = UDim2.new(1,-ART_PAD-44,0,4)
-NPVolBg.Position         = UDim2.new(0,ART_PAD+4,0,VOL_Y+8)
-NPVolBg.BackgroundColor3 = Color3.fromRGB(60,60,72)
+NPVolBg.Size             = UDim2.new(1,-INFO_PAD*2-42,0,4)
+NPVolBg.Position         = UDim2.new(0,INFO_PAD+22,0,VOL_Y+7)
+NPVolBg.BackgroundColor3 = Color3.fromRGB(70,70,84)
 NPVolBg.BorderSizePixel  = 0
 NPVolBg.ZIndex           = 22
 Instance.new("UICorner", NPVolBg).CornerRadius = UDim.new(1,0)
@@ -230,10 +313,10 @@ Instance.new("UICorner", NPVolFill).CornerRadius = UDim.new(1,0)
 
 local NPVolHigh = Instance.new("TextLabel", LeftPanel)
 NPVolHigh.Size             = UDim2.new(0,18,0,18)
-NPVolHigh.Position         = UDim2.new(1,-ART_PAD,0,VOL_Y)
+NPVolHigh.Position         = UDim2.new(1,-INFO_PAD-16,0,VOL_Y)
 NPVolHigh.BackgroundTransparency = 1
 NPVolHigh.Text             = "+"
-NPVolHigh.TextSize         = 17
+NPVolHigh.TextSize         = 18
 NPVolHigh.Font             = Enum.Font.GothamBold
 NPVolHigh.TextColor3       = C.subText
 NPVolHigh.ZIndex           = 22
@@ -282,56 +365,105 @@ RightPanel.Position         = UDim2.new(0,RIGHT_X,0,PANEL_Y)
 RightPanel.BackgroundTransparency = 1
 RightPanel.ZIndex           = 21
 
--- Top row: back `<`  |  ↻ (repeat pill)  ⇌ (shuffle pill)
--- Back button — circular, far left
+-- Back button: plain "<" text, no background, large
 local NPBackBtn = Instance.new("TextButton", RightPanel)
-NPBackBtn.Size             = UDim2.new(0,36,0,36)
-NPBackBtn.Position         = UDim2.new(0,0,0,0)
-NPBackBtn.BackgroundColor3 = C.card
-NPBackBtn.Text             = "<"
-NPBackBtn.TextColor3       = C.text
-NPBackBtn.Font             = Enum.Font.GothamBold
-NPBackBtn.TextSize         = 18
-NPBackBtn.BorderSizePixel  = 0
-NPBackBtn.AutoButtonColor  = false
-NPBackBtn.ZIndex           = 22
-Instance.new("UICorner", NPBackBtn).CornerRadius = UDim.new(1,0)
+NPBackBtn.Size              = UDim2.new(0,36,0,36)
+NPBackBtn.Position          = UDim2.new(0,0,0,0)
+NPBackBtn.BackgroundTransparency = 1
+NPBackBtn.AutoButtonColor   = false
+NPBackBtn.Text              = "<"
+NPBackBtn.TextColor3        = C.text
+NPBackBtn.Font              = Enum.Font.GothamBold
+NPBackBtn.TextSize          = 26
+NPBackBtn.ZIndex            = 22
 
--- Repeat button — icon-only pill (↻)
-local NPRepeatBtn = Instance.new("TextButton", RightPanel)
-NPRepeatBtn.Size             = UDim2.new(0,92,0,36)
-NPRepeatBtn.Position         = UDim2.new(0.5,-98,0,0)
-NPRepeatBtn.BackgroundColor3 = C.card
-NPRepeatBtn.Text             = "↻"
-NPRepeatBtn.TextColor3       = C.subText
-NPRepeatBtn.Font             = Enum.Font.GothamBold
-NPRepeatBtn.TextSize         = 22
-NPRepeatBtn.BorderSizePixel  = 0
-NPRepeatBtn.AutoButtonColor  = false
-NPRepeatBtn.ZIndex           = 22
-Instance.new("UICorner", NPRepeatBtn).CornerRadius = UDim.new(0,18)
+-- Repeat button: frame-based loop icon inside a ghost pill
+local TOGGLE_W = math.floor((RIGHT_W - 44) * 0.49)
+local TOGGLE_H = 36
+local TOGGLE_CR = 18
 
--- Shuffle button — icon-only pill (⇌)
-local NPShuffleBtn = Instance.new("TextButton", RightPanel)
-NPShuffleBtn.Size             = UDim2.new(0,92,0,36)
-NPShuffleBtn.Position         = UDim2.new(0.5,4,0,0)
-NPShuffleBtn.BackgroundColor3 = C.card
-NPShuffleBtn.Text             = "⇌"
-NPShuffleBtn.TextColor3       = C.subText
-NPShuffleBtn.Font             = Enum.Font.GothamBold
-NPShuffleBtn.TextSize         = 22
-NPShuffleBtn.BorderSizePixel  = 0
-NPShuffleBtn.AutoButtonColor  = false
-NPShuffleBtn.ZIndex           = 22
-Instance.new("UICorner", NPShuffleBtn).CornerRadius = UDim.new(0,18)
+-- Repeat pill
+local repPill = makeGhostPill(RightPanel,
+    44, 0,
+    TOGGLE_W, TOGGLE_H, TOGGLE_CR)
+repPill.Name = "RepeatPill"
+
+-- Repeat icon drawn inside the pill (frame-based, no broken unicode)
+local ICON_SZ = 20
+local repRing, repArr = makeRepeatIcon(repPill, ICON_SZ, GHOST_CLR, 23)
+-- position the icon inside the pill (centered)
+repRing.Position = UDim2.new(0.5, -math.floor(ICON_SZ/2), 0.5, -math.floor(ICON_SZ/2))
+repArr.Position  = UDim2.new(0.5, math.floor(ICON_SZ*0.16), 0.5, -ICON_SZ)
+
+local NPRepeatBtn = Instance.new("TextButton", repPill)
+NPRepeatBtn.Size              = UDim2.new(1,0,1,0)
+NPRepeatBtn.BackgroundTransparency = 1
+NPRepeatBtn.AutoButtonColor   = false
+NPRepeatBtn.Text              = ""
+NPRepeatBtn.ZIndex            = 24
+
+-- Shuffle pill  (⇌ works in Roblox Gotham)
+local shuPill = makeGhostPill(RightPanel,
+    44 + TOGGLE_W + 6, 0,
+    TOGGLE_W, TOGGLE_H, TOGGLE_CR)
+shuPill.Name = "ShufflePill"
+local shuIcon = Instance.new("TextLabel", shuPill)
+shuIcon.Size              = UDim2.new(1,0,1,0)
+shuIcon.BackgroundTransparency = 1
+shuIcon.Text              = "⇌"
+shuIcon.Font              = Enum.Font.GothamBold
+shuIcon.TextSize          = 20
+shuIcon.TextColor3        = GHOST_CLR
+shuIcon.ZIndex            = 23
+
+local NPShuffleBtn = Instance.new("TextButton", shuPill)
+NPShuffleBtn.Size              = UDim2.new(1,0,1,0)
+NPShuffleBtn.BackgroundTransparency = 1
+NPShuffleBtn.AutoButtonColor   = false
+NPShuffleBtn.Text              = ""
+NPShuffleBtn.ZIndex            = 24
 
 UI.NPRepeatBtn  = NPRepeatBtn
 UI.NPShuffleBtn = NPShuffleBtn
+UI.repPill      = repPill
+UI.repRing      = repRing
+UI.repArr       = repArr
+UI.shuPill      = shuPill
+UI.shuIcon      = shuIcon
+
+-- Toggle state helpers
+local function setRepeatVisual(on)
+    local clr = on and C.accentBlue or GHOST_CLR
+    repPill.BackgroundTransparency = on and GHOST_PRESS or GHOST_TRANS
+    repPill.BackgroundColor3       = on and C.accentBlue or GHOST_CLR
+    local stroke = repRing:FindFirstChildWhichIsA("UIStroke")
+    if stroke then stroke.Color = on and Color3.new(1,1,1) or GHOST_CLR end
+    repArr.TextColor3 = on and Color3.new(1,1,1) or GHOST_CLR
+end
+
+local function setShuffleVisual(on)
+    shuPill.BackgroundTransparency = on and GHOST_PRESS or GHOST_TRANS
+    shuPill.BackgroundColor3       = on and C.accentBlue or GHOST_CLR
+    shuIcon.TextColor3             = on and Color3.new(1,1,1) or GHOST_CLR
+end
+
+setRepeatVisual(false)
+setShuffleVisual(false)
+
+-- Wire toggles
+NPRepeatBtn.MouseButton1Click:Connect(function()
+    E.State.repeatOn = not E.State.repeatOn
+    setRepeatVisual(E.State.repeatOn)
+end)
+NPShuffleBtn.MouseButton1Click:Connect(function()
+    E.State.shuffleOn = not E.State.shuffleOn
+    setShuffleVisual(E.State.shuffleOn)
+end)
 
 -- "Continue Playing" header
 local CPHeader = Instance.new("TextLabel", RightPanel)
-CPHeader.Size             = UDim2.new(1,0,0,19)
-CPHeader.Position         = UDim2.new(0,0,0,48)
+CPHeader.Size             = UDim2.new(1,0,0,18)
+CPHeader.Position         = UDim2.new(0,0,0,TOGGLE_H+12)
 CPHeader.BackgroundTransparency = 1
 CPHeader.Text             = "Continue Playing"
 CPHeader.TextColor3       = C.text
@@ -341,20 +473,21 @@ CPHeader.TextXAlignment   = Enum.TextXAlignment.Left
 CPHeader.ZIndex           = 22
 
 local CPSub = Instance.new("TextLabel", RightPanel)
-CPSub.Size             = UDim2.new(1,0,0,14)
-CPSub.Position         = UDim2.new(0,0,0,69)
+CPSub.Size             = UDim2.new(1,0,0,13)
+CPSub.Position         = UDim2.new(0,0,0,TOGGLE_H+32)
 CPSub.BackgroundTransparency = 1
 CPSub.Text             = "From Library"
 CPSub.TextColor3       = C.subText
 CPSub.Font             = Enum.Font.Gotham
-CPSub.TextSize         = 12
+CPSub.TextSize         = 11
 CPSub.TextXAlignment   = Enum.TextXAlignment.Left
 CPSub.ZIndex           = 22
 
 -- Queue scroll list
+local QUEUE_TOP = TOGGLE_H + 50
 local QueueScroll = Instance.new("ScrollingFrame", RightPanel)
-QueueScroll.Size             = UDim2.new(1,0,1,-138)
-QueueScroll.Position         = UDim2.new(0,0,0,90)
+QueueScroll.Size             = UDim2.new(1,0,1,-QUEUE_TOP-44)
+QueueScroll.Position         = UDim2.new(0,0,0,QUEUE_TOP)
 QueueScroll.BackgroundTransparency = 1
 QueueScroll.BorderSizePixel  = 0
 QueueScroll.ScrollBarThickness = 2
@@ -368,7 +501,7 @@ local QLayout = Instance.new("UIListLayout", QueueScroll)
 QLayout.Padding   = UDim.new(0,4)
 QLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
--- Queue item builder
+-- Queue item builder — click wired up via E.playSong
 local function makeQueueItem(song, order)
     local item = Instance.new("TextButton", QueueScroll)
     item.Size             = UDim2.new(1,-4,0,52)
@@ -379,16 +512,18 @@ local function makeQueueItem(song, order)
     item.ZIndex           = 23
 
     local thumb = Instance.new("ImageLabel", item)
+    thumb.Name             = "Thumb"
     thumb.Size             = UDim2.new(0,42,0,42)
     thumb.Position         = UDim2.new(0,0,0.5,-21)
     thumb.BackgroundColor3 = C.card
     thumb.BorderSizePixel  = 0
     thumb.Image            = song.cover or ""
+    thumb.ScaleType        = Enum.ScaleType.Crop
     thumb.ZIndex           = 24
-    Instance.new("UICorner",thumb).CornerRadius = UDim.new(0,8)
+    Instance.new("UICorner", thumb).CornerRadius = UDim.new(0,8)
 
     local tLbl = Instance.new("TextLabel", item)
-    tLbl.Size             = UDim2.new(1,-52,0,17)
+    tLbl.Size             = UDim2.new(1,-56,0,17)
     tLbl.Position         = UDim2.new(0,50,0,8)
     tLbl.BackgroundTransparency = 1
     tLbl.Text             = song.title
@@ -400,7 +535,7 @@ local function makeQueueItem(song, order)
     tLbl.ZIndex           = 24
 
     local aLbl = Instance.new("TextLabel", item)
-    aLbl.Size             = UDim2.new(1,-52,0,14)
+    aLbl.Size             = UDim2.new(1,-56,0,13)
     aLbl.Position         = UDim2.new(0,50,0,27)
     aLbl.BackgroundTransparency = 1
     aLbl.Text             = song.artist
@@ -410,12 +545,27 @@ local function makeQueueItem(song, order)
     aLbl.TextXAlignment   = Enum.TextXAlignment.Left
     aLbl.ZIndex           = 24
 
+    -- Hover
     item.MouseEnter:Connect(function()
-        E.tween(item, {BackgroundTransparency = 0.88}, 0.1)
         item.BackgroundColor3 = C.card
+        E.tween(item, {BackgroundTransparency = 0.86}, 0.1)
     end)
     item.MouseLeave:Connect(function()
         E.tween(item, {BackgroundTransparency = 1}, 0.1)
+    end)
+
+    -- Click → play song + fly animation (NowPlaying already open)
+    item.MouseButton1Click:Connect(function()
+        if E.playSong then
+            -- Capture thumb position before anything changes
+            local fromPos = thumb.AbsolutePosition
+            local fromSz  = thumb.AbsoluteSize
+            E.playSong(song)
+            -- Fly from queue thumbnail to album art
+            if E.animateCoverFly then
+                E.animateCoverFly(fromPos, fromSz, song, true)
+            end
+        end
     end)
 
     return item
@@ -443,16 +593,16 @@ end
 
 E.buildQueue()
 
--- Bottom action buttons  (>_ social ...)
+-- Bottom action buttons
 local function makeActionBtn(icon, xOff)
     local b = Instance.new("TextButton", RightPanel)
     b.Size             = UDim2.new(0,38,0,38)
-    b.Position         = UDim2.new(0,xOff,1,-44)
+    b.Position         = UDim2.new(0,xOff,1,-42)
     b.BackgroundTransparency = 1
     b.Text             = icon
     b.TextColor3       = C.subText
     b.Font             = Enum.Font.GothamBold
-    b.TextSize         = 18
+    b.TextSize         = 16
     b.ZIndex           = 22
     return b
 end
@@ -480,29 +630,26 @@ function E.openNowPlaying(song)
     E.State.nowPlayingOpen = true
     Sheet.Visible = true
     Sheet.Position = UDim2.new(0,0,1,0)
-    E.tween(Sheet, {Position = UDim2.new(0,0,0,0)}, 0.42, Enum.EasingStyle.Quint)
+    E.tween(Sheet, {Position = UDim2.new(0,0,0,0)}, 0.40, Enum.EasingStyle.Quint)
 end
 
 function E.closeNowPlaying()
     E.State.nowPlayingOpen = false
-    local t = E.tween(Sheet, {Position = UDim2.new(0,0,1,0)}, 0.34, Enum.EasingStyle.Quint)
+    local t = E.tween(Sheet, {Position = UDim2.new(0,0,1,0)}, 0.32, Enum.EasingStyle.Quint)
     t.Completed:Connect(function() Sheet.Visible = false end)
 end
 
 -- ============================================================
---  DRAG-DOWN TO DISMISS  (no X button — drag handle is enough)
+--  DRAG-DOWN TO DISMISS
 -- ============================================================
-local dragging   = false
-local dragStartY = 0
+local dragging, dragStartY = false, 0
 
 DragHit.InputBegan:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.MouseButton1
     or inp.UserInputType == Enum.UserInputType.Touch then
-        dragging   = true
-        dragStartY = inp.Position.Y
+        dragging = true ; dragStartY = inp.Position.Y
     end
 end)
-
 UIS.InputEnded:Connect(function(inp)
     if not dragging then return end
     if inp.UserInputType == Enum.UserInputType.MouseButton1
@@ -515,7 +662,6 @@ UIS.InputEnded:Connect(function(inp)
         end
     end
 end)
-
 UIS.InputChanged:Connect(function(inp)
     if not dragging then return end
     if inp.UserInputType == Enum.UserInputType.MouseMovement

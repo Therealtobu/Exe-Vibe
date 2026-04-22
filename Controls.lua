@@ -1,5 +1,8 @@
 -- ============================================================
---  Controls.lua  |  Exvibe Music Player  (v3 fixed)
+--  Controls.lua  |  Exvibe Music Player  (v8)
+--  - Cover fly-to animation when switching songs
+--  - Queue item clicks handled via E.playSong
+--  - Repeat/shuffle state in E.State
 -- ============================================================
 
 local E   = _G.Exvibe
@@ -11,7 +14,53 @@ local RunService       = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 -- ============================================================
---  PLAY SONG
+--  COVER FLY-TO ANIMATION
+--  fromAbsPos / fromAbsSize: AbsolutePosition/Size of clicked cover
+--  song: the song table
+--  npAlreadyOpen: true if NowPlaying sheet is already visible
+-- ============================================================
+function E.animateCoverFly(fromAbsPos, fromAbsSize, song, npAlreadyOpen)
+    task.spawn(function()
+        -- If NP was just opened, wait for the sheet to be mostly in place
+        if not npAlreadyOpen then
+            task.wait(0.32)
+        else
+            task.wait(0.02)
+        end
+
+        local npArt = UI.NPArt
+        if not npArt then return end
+
+        local toPos = npArt.AbsolutePosition
+        local toSz  = npArt.AbsoluteSize
+
+        -- Sanity check: if target is still off-screen, skip animation
+        if toSz.X < 10 or toSz.Y < 10 then return end
+
+        -- Clone image that flies from card → album art
+        local clone = Instance.new("ImageLabel", UI.ScreenGui)
+        clone.Image           = song.cover or ""
+        clone.Position        = UDim2.new(0, fromAbsPos.X, 0, fromAbsPos.Y)
+        clone.Size            = UDim2.new(0, fromAbsSize.X, 0, fromAbsSize.Y)
+        clone.BackgroundColor3 = C.card
+        clone.BorderSizePixel = 0
+        clone.ZIndex          = 200
+        clone.ScaleType       = Enum.ScaleType.Crop
+        Instance.new("UICorner", clone).CornerRadius = UDim.new(0, 8)
+
+        local t = E.tween(clone, {
+            Position = UDim2.new(0, toPos.X, 0, toPos.Y),
+            Size     = UDim2.new(0, toSz.X,  0, toSz.Y)
+        }, 0.46, Enum.EasingStyle.Quint)
+
+        t.Completed:Connect(function()
+            clone:Destroy()
+        end)
+    end)
+end
+
+-- ============================================================
+--  PLAY SONG  (master helper)
 -- ============================================================
 local function playSong(song)
     Eng:play(song)
@@ -22,17 +71,23 @@ local function playSong(song)
         E.openNowPlaying(song)
     end
 end
-E.playSong = playSong
+E.playSong = playSong   -- expose so queue items can call it
 
 -- ============================================================
 --  NEXT / PREV
 -- ============================================================
 local function nextSong()
     if not E.State.currentSong then return end
-    for i, s in ipairs(E.MusicDatabase) do
+    local db = E.MusicDatabase
+    -- Shuffle
+    if E.State.shuffleOn then
+        local idx = math.random(1, #db)
+        playSong(db[idx])
+        return
+    end
+    for i, s in ipairs(db) do
         if s.id == E.State.currentSong.id then
-            playSong(E.MusicDatabase[i+1] or E.MusicDatabase[1])
-            return
+            playSong(db[i+1] or db[1]) ; return
         end
     end
 end
@@ -40,16 +95,16 @@ end
 local function prevSong()
     if not E.State.currentSong then return end
     if Eng:getPosition() > 3 then Eng:seekTo(0) return end
-    for i, s in ipairs(E.MusicDatabase) do
+    local db = E.MusicDatabase
+    for i, s in ipairs(db) do
         if s.id == E.State.currentSong.id then
-            playSong(E.MusicDatabase[i-1] or E.MusicDatabase[#E.MusicDatabase])
-            return
+            playSong(db[i-1] or db[#db]) ; return
         end
     end
 end
 
 -- ============================================================
---  SONG CARDS
+--  SONG CARDS (Discovery) — click + fly animation
 -- ============================================================
 for songId, card in pairs(UI.songCardMap) do
     local capturedId = songId
@@ -58,7 +113,17 @@ for songId, card in pairs(UI.songCardMap) do
         for _, s in ipairs(E.MusicDatabase) do
             if s.id == capturedId then song = s break end
         end
-        if song then playSong(song) E.openNowPlaying(song) end
+        if not song then return end
+
+        -- Get cover image position from the card
+        local artImg = card:FindFirstChildWhichIsA("ImageLabel")
+        local fromPos = artImg and artImg.AbsolutePosition or Vector2.new(0,0)
+        local fromSz  = artImg and artImg.AbsoluteSize    or Vector2.new(40,40)
+
+        local wasOpen = E.State.nowPlayingOpen
+        playSong(song)
+        E.openNowPlaying(song)
+        E.animateCoverFly(fromPos, fromSz, song, wasOpen)
     end)
 end
 
@@ -90,24 +155,9 @@ UI.NPBtnPlay.MouseButton1Click:Connect(togglePlayPause)
 UI.NPBtnNext.MouseButton1Click:Connect(nextSong)
 UI.NPBtnPrev.MouseButton1Click:Connect(prevSong)
 
-local repeatOn = false
-UI.NPRepeatBtn.MouseButton1Click:Connect(function()
-    repeatOn = not repeatOn
-    E.tween(UI.NPRepeatBtn, {
-        BackgroundColor3 = repeatOn and C.accentBlue or C.card
-    }, 0.15)
-    UI.NPRepeatBtn.TextColor3 = repeatOn and Color3.new(1,1,1) or C.subText
-end)
-
-local shuffleOn = false
-UI.NPShuffleBtn.MouseButton1Click:Connect(function()
-    shuffleOn = not shuffleOn
-    E.tween(UI.NPShuffleBtn, {
-        BackgroundColor3 = shuffleOn and C.accentBlue or C.card
-    }, 0.15)
-    UI.NPShuffleBtn.TextColor3 = shuffleOn and Color3.new(1,1,1) or C.subText
-end)
-
+-- ============================================================
+--  PLAYER BAR THUMBNAIL → open NowPlaying
+-- ============================================================
 UI.PlayerThumb.InputBegan:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.MouseButton1
     and E.State.currentSong then
@@ -123,9 +173,9 @@ end)
 --  WINDOW  OPEN / CLOSE
 -- ============================================================
 local windowOpen = false
-local FRAME_W  = E.FRAME_W  or 760
-local FRAME_H  = E.FRAME_H  or 470
-local Y_OFFSET = 40    -- px below center to clear Roblox chat
+local FRAME_W  = E.FRAME_W or 760
+local FRAME_H  = E.FRAME_H or 470
+local Y_OFFSET = 40
 
 local function openWindow()
     windowOpen = true
@@ -135,10 +185,10 @@ local function openWindow()
     E.tween(UI.Backdrop, {BackgroundTransparency = 0.45}, 0.30, Enum.EasingStyle.Quint)
     UI.MainFrame.Visible = true
     UI.MainFrame.BackgroundTransparency = 1
-    UI.MainFrame.Position = UDim2.new(0.5, -FRAME_W/2, 0.5, -FRAME_H/2 + Y_OFFSET + 20)
+    UI.MainFrame.Position = UDim2.new(0.5,-FRAME_W/2, 0.5,-FRAME_H/2+Y_OFFSET+20)
     E.tween(UI.MainFrame, {
         BackgroundTransparency = 0,
-        Position = UDim2.new(0.5, -FRAME_W/2, 0.5, -FRAME_H/2 + Y_OFFSET)
+        Position = UDim2.new(0.5,-FRAME_W/2, 0.5,-FRAME_H/2+Y_OFFSET)
     }, 0.38, Enum.EasingStyle.Quint)
     E.tween(UI.navButtons["Discovery"] or next(UI.navButtons),
         {BackgroundColor3 = C.card, TextColor3 = C.text}, 0.15)
@@ -151,7 +201,7 @@ local function closeWindow()
     E.tween(UI.Backdrop, {BackgroundTransparency = 1}, 0.26, Enum.EasingStyle.Quint)
     local t = E.tween(UI.MainFrame, {
         BackgroundTransparency = 1,
-        Position = UDim2.new(0.5, -FRAME_W/2, 0.5, -FRAME_H/2 + Y_OFFSET + 20)
+        Position = UDim2.new(0.5,-FRAME_W/2, 0.5,-FRAME_H/2+Y_OFFSET+20)
     }, 0.28, Enum.EasingStyle.Quint)
     t.Completed:Connect(function()
         UI.MainFrame.Visible = false
@@ -175,18 +225,18 @@ UI.ToggleBtn.MouseLeave:Connect(function()
 end)
 
 -- ============================================================
---  HAMBURGER SIDEBAR TOGGLE  (ContentArea height = BAR_H correct)
+--  HAMBURGER SIDEBAR TOGGLE
 -- ============================================================
-local BAR_H    = E.BAR_H    or 58
-local SIDEBAR_W_FULL = E.SIDEBAR_W or math.floor(FRAME_W * 0.26)
+local BAR_H       = E.BAR_H    or 58
+local SIDEBAR_W_F = E.SIDEBAR_W or math.floor(FRAME_W*0.26)
 
 UI.HamBtn.MouseButton1Click:Connect(function()
     E.State.sidebarOpen = not E.State.sidebarOpen
-    local newSbW = E.State.sidebarOpen and SIDEBAR_W_FULL or 0
-    E.tween(UI.Sidebar,     {Size = UDim2.new(0, newSbW, 1, 0)}, 0.26)
+    local newSbW = E.State.sidebarOpen and SIDEBAR_W_F or 0
+    E.tween(UI.Sidebar,     {Size = UDim2.new(0,newSbW,1,0)}, 0.26)
     E.tween(UI.ContentArea, {
-        Size     = UDim2.new(1, -newSbW, 1, -BAR_H),
-        Position = UDim2.new(0, newSbW, 0, 0)
+        Size     = UDim2.new(1,-newSbW,1,-BAR_H),
+        Position = UDim2.new(0,newSbW,0,0)
     }, 0.26)
 end)
 
@@ -209,8 +259,8 @@ local function navigateTo(page)
 end
 
 for name, btn in pairs(UI.navButtons) do
-    local capturedName = name
-    btn.MouseButton1Click:Connect(function() navigateTo(capturedName) end)
+    local n = name
+    btn.MouseButton1Click:Connect(function() navigateTo(n) end)
 end
 navigateTo("Discovery")
 
@@ -221,9 +271,7 @@ local dragging, dragStart, frameStart = false
 
 UI.TopBar.InputBegan:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging   = true
-        dragStart  = inp.Position
-        frameStart = UI.MainFrame.Position
+        dragging = true ; dragStart = inp.Position ; frameStart = UI.MainFrame.Position
     end
 end)
 UserInputService.InputEnded:Connect(function(inp)
@@ -239,7 +287,7 @@ UserInputService.InputChanged:Connect(function(inp)
 end)
 
 -- ============================================================
---  PROGRESS BAR  (Heartbeat)
+--  PROGRESS BAR UPDATE  (Heartbeat)
 -- ============================================================
 RunService.Heartbeat:Connect(function()
     if not (E.State.isPlaying and E.State.currentSong) then return end
@@ -257,32 +305,35 @@ end)
 -- Progress seek (player bar)
 UI.ProgFill.Parent.InputBegan:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.MouseButton1 then
-        local bx   = UI.ProgFill.Parent.AbsolutePosition.X
-        local bw   = UI.ProgFill.Parent.AbsoluteSize.X
-        Eng:seekTo(math.clamp((inp.Position.X - bx) / bw, 0, 1))
+        local bx = UI.ProgFill.Parent.AbsolutePosition.X
+        local bw = UI.ProgFill.Parent.AbsoluteSize.X
+        Eng:seekTo(math.clamp((inp.Position.X-bx)/bw, 0, 1))
     end
 end)
 
--- Progress seek (now-playing sheet)
+-- Progress seek (NowPlaying sheet)
 UI.NPProgBg.InputBegan:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.MouseButton1 then
-        local bx   = UI.NPProgBg.AbsolutePosition.X
-        local bw   = UI.NPProgBg.AbsoluteSize.X
-        Eng:seekTo(math.clamp((inp.Position.X - bx) / bw, 0, 1))
+        local bx = UI.NPProgBg.AbsolutePosition.X
+        local bw = UI.NPProgBg.AbsoluteSize.X
+        Eng:seekTo(math.clamp((inp.Position.X-bx)/bw, 0, 1))
     end
 end)
 
 -- ============================================================
---  AUTO-ADVANCE
+--  AUTO-ADVANCE  (song end → next, respects repeat)
 -- ============================================================
-local repeatOn_ref = function() return repeatOn end   -- captured below
 task.spawn(function()
     while true do
         task.wait(1)
         if E.State.isPlaying and E.State.currentSong then
             local dur = Eng:getDuration()
             if dur > 0 and Eng:getPosition() >= dur - 0.5 then
-                if repeatOn then Eng:seekTo(0) else nextSong() end
+                if E.State.repeatOn then
+                    Eng:seekTo(0)
+                else
+                    nextSong()
+                end
             end
         end
     end
