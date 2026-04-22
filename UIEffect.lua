@@ -354,7 +354,10 @@ cmBtns[2].MouseButton1Click:Connect(function()
         for _, s in ipairs(E.State.library) do
             if s.id == cmSong.id then dup = true break end
         end
-        if not dup then table.insert(E.State.library, cmSong) end
+        if not dup then
+            table.insert(E.State.library, cmSong)
+            if E.rebuildLibrary then E.rebuildLibrary() end
+        end
     end
     closeCM()
 end)

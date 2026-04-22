@@ -1,10 +1,5 @@
 -- ============================================================
---  Controls.lua  |  Exvibe Music Player  (v8.2)
---  Changes:
---  - setNPPlayState() manages ImageLabel/text for play/pause btn
---  - playSong: when NP already open, openNowPlaying handles
---    content update without re-sliding (fixes stutter)
---  - animateCoverFly: no extra wait needed since sheet is stable
+--  Controls.lua  |  Exvibe Music Player  (v9 – Search/Library)
 -- ============================================================
 
 local E   = _G.Exvibe
@@ -12,12 +7,12 @@ local C   = E.COLORS
 local UI  = E.UI
 local Eng = E.Engine
 
+local TweenService     = game:GetService("TweenService")
 local RunService       = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 -- ============================================================
---  PLAY/PAUSE BUTTON STATE HELPER
---  Manages the image icon (pause asset) vs text "▶" fallback
+--  PLAY/PAUSE BUTTON STATE
 -- ============================================================
 local function setNPPlayState(playing)
     if UI.NPBtnPlayImg then
@@ -28,23 +23,15 @@ end
 
 -- ============================================================
 --  COVER FLY-TO ANIMATION
---  Since openNowPlaying no longer re-slides when sheet is open,
---  NPArt.AbsolutePosition is always stable → no stutter.
 -- ============================================================
 function E.animateCoverFly(fromAbsPos, fromAbsSize, song, npAlreadyOpen)
     task.spawn(function()
-        -- Wait for sheet to finish sliding in if it was just opened
-        if not npAlreadyOpen then
-            task.wait(0.32)
-        end
-
+        if not npAlreadyOpen then task.wait(0.32) end
         local npArt = UI.NPArt
         if not npArt then return end
-
         local toPos = npArt.AbsolutePosition
         local toSz  = npArt.AbsoluteSize
         if toSz.X < 10 or toSz.Y < 10 then return end
-
         local clone = Instance.new("ImageLabel", UI.ScreenGui)
         clone.Image            = song.cover or ""
         clone.Position         = UDim2.new(0, fromAbsPos.X, 0, fromAbsPos.Y)
@@ -54,12 +41,10 @@ function E.animateCoverFly(fromAbsPos, fromAbsSize, song, npAlreadyOpen)
         clone.ZIndex           = 200
         clone.ScaleType        = Enum.ScaleType.Crop
         Instance.new("UICorner", clone).CornerRadius = UDim.new(0, 8)
-
         local t = E.tween(clone, {
             Position = UDim2.new(0, toPos.X, 0, toPos.Y),
-            Size     = UDim2.new(0, toSz.X,  0, toSz.Y)
+            Size     = UDim2.new(0, toSz.X, 0, toSz.Y)
         }, 0.46, Enum.EasingStyle.Quint)
-
         t.Completed:Connect(function() clone:Destroy() end)
     end)
 end
@@ -72,9 +57,6 @@ local function playSong(song)
     E.updatePlayerBar(song)
     UI.BtnPlay.Text = "▌▌"
     setNPPlayState(true)
-
-    -- openNowPlaying now handles both "already open" (update only)
-    -- and "fresh open" (slide in) cases
     if E.State.nowPlayingOpen then
         E.openNowPlaying(song)
     end
@@ -88,8 +70,7 @@ local function nextSong()
     if not E.State.currentSong then return end
     local db = E.MusicDatabase
     if E.State.shuffleOn then
-        local idx = math.random(1, #db)
-        playSong(db[idx]) ; return
+        playSong(db[math.random(1, #db)]) ; return
     end
     for i, s in ipairs(db) do
         if s.id == E.State.currentSong.id then
@@ -110,26 +91,32 @@ local function prevSong()
 end
 
 -- ============================================================
---  SONG CARDS — click + fly animation
+--  SONG CARD CLICK CONNECTIONS  (Discovery + Reco cards)
 -- ============================================================
-for songId, card in pairs(UI.songCardMap) do
+local function connectCard(songId, card)
     local capturedId = songId
     card.MouseButton1Click:Connect(function()
         local song
         for _, s in ipairs(E.MusicDatabase) do
-            if s.id == capturedId then song = s break end
+            if s.id == capturedId then song = s ; break end
         end
         if not song then return end
-
         local artImg = card:FindFirstChildWhichIsA("ImageLabel")
         local fromPos = artImg and artImg.AbsolutePosition or Vector2.new(0,0)
         local fromSz  = artImg and artImg.AbsoluteSize    or Vector2.new(40,40)
-
         local wasOpen = E.State.nowPlayingOpen
         playSong(song)
         E.openNowPlaying(song)
         E.animateCoverFly(fromPos, fromSz, song, wasOpen)
     end)
+end
+
+for songId, card in pairs(UI.songCardMap) do
+    connectCard(songId, card)
+end
+-- Reco cards in Search page
+for songId, card in pairs(UI.recoCardMap) do
+    connectCard(songId, card)
 end
 
 -- ============================================================
@@ -157,9 +144,6 @@ UI.NPBtnPlay.MouseButton1Click:Connect(togglePlayPause)
 UI.NPBtnNext.MouseButton1Click:Connect(nextSong)
 UI.NPBtnPrev.MouseButton1Click:Connect(prevSong)
 
--- ============================================================
---  PLAYER BAR THUMBNAIL → open NowPlaying
--- ============================================================
 UI.PlayerThumb.InputBegan:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.MouseButton1
     and E.State.currentSong then
@@ -229,7 +213,7 @@ end)
 -- ============================================================
 --  HAMBURGER SIDEBAR TOGGLE
 -- ============================================================
-local BAR_H       = E.BAR_H    or 58
+local BAR_H       = E.BAR_H or 58
 local SIDEBAR_W_F = E.SIDEBAR_W or math.floor(FRAME_W*0.26)
 
 UI.HamBtn.MouseButton1Click:Connect(function()
@@ -237,28 +221,72 @@ UI.HamBtn.MouseButton1Click:Connect(function()
     local newSbW = E.State.sidebarOpen and SIDEBAR_W_F or 0
     E.tween(UI.Sidebar,     {Size = UDim2.new(0,newSbW,1,0)}, 0.26)
     E.tween(UI.ContentArea, {
-        Size     = UDim2.new(1,-newSbW,1,-BAR_H),
+        Size     = UDim2.new(1,-newSbW,1,0),
         Position = UDim2.new(0,newSbW,0,0)
     }, 0.26)
 end)
 
 -- ============================================================
---  SIDEBAR NAVIGATION
+--  PAGE NAVIGATION  (Loader.lua–style pop-in animation)
 -- ============================================================
-local function navigateTo(page)
-    E.State.currentPage = page
-    UI.PageTitle.Text   = page
+local pages = {
+    Discovery = UI.DiscoveryPage,
+    Search    = UI.SearchPage,
+    Library   = UI.LibraryPage,
+}
+
+-- Pop-in: scale 1.04→1.0 + Exponential easing (from Loader.lua)
+local function popInPage(page)
+    if not page then return end
+    local sc = page._uiscale
+    if sc then
+        sc.Scale = 1.04
+        TweenService:Create(sc,
+            TweenInfo.new(0.45, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+            { Scale = 1.0 }
+        ):Play()
+    end
+    -- Subtle Y slide (16px → 0)
+    page.Position = UDim2.new(0,0,0,10)
+    TweenService:Create(page,
+        TweenInfo.new(0.35, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+        { Position = UDim2.new(0,0,0,0) }
+    ):Play()
+end
+
+local function navigateTo(pageName)
+    E.State.currentPage = pageName
+    UI.PageTitle.Text   = pageName
+
+    -- Nav button highlight
     for name, btn in pairs(UI.navButtons) do
-        if name == page then
+        if name == pageName then
             E.tween(btn, {BackgroundColor3 = C.card,    TextColor3 = C.text},    0.14)
         else
             E.tween(btn, {BackgroundColor3 = C.sidebar, TextColor3 = C.subText}, 0.14)
         end
     end
-    local onDisc = (page == "Discovery")
-    UI.SongsSec.Visible  = onDisc
-    UI.ArtistSec.Visible = onDisc
+
+    -- Show/hide pages
+    for name, page in pairs(pages) do
+        if page then
+            page.Visible = (name == pageName)
+        end
+    end
+
+    -- Animate the target page in
+    local target = pages[pageName]
+    if target then
+        target.Visible = true
+        popInPage(target)
+    end
+
+    -- Refresh Library when switching to it
+    if pageName == "Library" then
+        E.rebuildLibrary()
+    end
 end
+E.navigateTo = navigateTo
 
 for name, btn in pairs(UI.navButtons) do
     local n = name
@@ -308,48 +336,10 @@ UI.ProgFill.Parent.InputBegan:Connect(function(inp)
     if inp.UserInputType == Enum.UserInputType.MouseButton1 then
         local bx = UI.ProgFill.Parent.AbsolutePosition.X
         local bw = UI.ProgFill.Parent.AbsoluteSize.X
-        Eng:seekTo(math.clamp((inp.Position.X-bx)/bw, 0, 1))
-    end
-end)
-
-UI.NPProgBg.InputBegan:Connect(function(inp)
-    if inp.UserInputType == Enum.UserInputType.MouseButton1 then
-        local bx = UI.NPProgBg.AbsolutePosition.X
-        local bw = UI.NPProgBg.AbsoluteSize.X
-        Eng:seekTo(math.clamp((inp.Position.X-bx)/bw, 0, 1))
-    end
-end)
-
--- ============================================================
---  AUTO-ADVANCE
--- ============================================================
-task.spawn(function()
-    while true do
-        task.wait(1)
-        if E.State.isPlaying and E.State.currentSong then
-            local dur = Eng:getDuration()
-            if dur > 0 and Eng:getPosition() >= dur - 0.5 then
-                if E.State.repeatOn then
-                    Eng:seekTo(0)
-                else
-                    nextSong()
-                end
-            end
+        if bw > 0 then
+            local frac = math.clamp((inp.Position.X - bx) / bw, 0, 1)
+            Eng:seekTo(frac)
         end
-    end
-end)
-
--- ============================================================
---  KEYBOARD SHORTCUTS
--- ============================================================
-UserInputService.InputBegan:Connect(function(inp, gpe)
-    if gpe then return end
-    if inp.KeyCode == Enum.KeyCode.Space then
-        togglePlayPause()
-    elseif inp.KeyCode == Enum.KeyCode.Right then
-        if E.State.currentSong then Eng.sound.TimePosition = Eng:getPosition() + 5 end
-    elseif inp.KeyCode == Enum.KeyCode.Left then
-        if E.State.currentSong then Eng.sound.TimePosition = math.max(0, Eng:getPosition() - 5) end
     end
 end)
 

@@ -17,8 +17,8 @@ local UIS = game:GetService("UserInputService")
 -- ============================================================
 --  ASSET IDs
 -- ============================================================
-local ASSET_PAUSE   = "rbxassetid://72396954315758"
-local ASSET_PREV    = "rbxassetid://72693785960426"
+local ASSET_PAUSE   = "rbxassetid://97751235710224"
+local ASSET_PREV    = "rbxassetid://82102136991437"
 local ASSET_NEXT    = "rbxassetid://111765560089071"
 local ASSET_SHUFFLE = "rbxassetid://74222790776317"
 local ASSET_REPEAT  = "rbxassetid://71635659455113"
