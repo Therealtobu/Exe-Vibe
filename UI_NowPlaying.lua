@@ -38,7 +38,7 @@ local RIGHT_W   = FW - RIGHT_X - 16
 
 local CONTENT_H = FH - PANEL_Y
 local ART_PAD   = 20
-local BELOW_ART = 180   -- increased to prevent bottom clip
+local BELOW_ART = 200   -- increased buffer to prevent bottom clip
 local ART_SIZE  = math.min(LEFT_W - ART_PAD, CONTENT_H - 14 - BELOW_ART - 10)
 local ART_X     = math.floor((LEFT_W - ART_SIZE) / 2)
 local INFO_PAD  = math.max(10, ART_X)
@@ -55,7 +55,7 @@ local LEFT_CX = math.floor(LEFT_W / 2)
 
 -- Toggle opacity (no color change)
 local TOGGLE_CLR       = Color3.fromRGB(180, 180, 200)
-local TOGGLE_TRANS_OFF = 0.82
+local TOGGLE_TRANS_OFF = 0.50   -- was 0.82 (too transparent, pills invisible)
 local TOGGLE_TRANS_ON  = 0.28
 
 -- ============================================================
@@ -220,9 +220,19 @@ local function makeCtrlImgBtn(assetId, cx, btnW, btnH)
     return hit, img
 end
 
-local NPBtnPrev, _           = makeCtrlImgBtn(ASSET_PREV,  LEFT_CX - 58, 46, CTRL_BTN_H)
+local NPBtnPrev, _prevImg     = makeCtrlImgBtn(ASSET_PREV,  LEFT_CX - 58, 46, CTRL_BTN_H)
 local NPBtnPlay, NPBtnPlayImg = makeCtrlImgBtn(ASSET_PAUSE, LEFT_CX,      54, CTRL_PLAY_H)
-local NPBtnNext, _           = makeCtrlImgBtn(ASSET_NEXT,  LEFT_CX + 58, 46, CTRL_BTN_H)
+local NPBtnNext, _nextImg     = makeCtrlImgBtn(ASSET_NEXT,  LEFT_CX + 58, 46, CTRL_BTN_H)
+
+-- Text fallback: shows when asset image hasn't loaded (image child renders on top when loaded)
+NPBtnPrev.Text       = "◀◀"
+NPBtnPrev.Font       = Enum.Font.GothamBold
+NPBtnPrev.TextSize   = 14
+NPBtnPrev.TextColor3 = C.text
+NPBtnNext.Text       = "▶▶"
+NPBtnNext.Font       = Enum.Font.GothamBold
+NPBtnNext.TextSize   = 14
+NPBtnNext.TextColor3 = C.text
 
 -- Play/pause state:
 --   Playing  → image visible (pause icon),  text = ""

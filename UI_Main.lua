@@ -15,7 +15,10 @@ local UI = E.UI
 local cam       = workspace.CurrentCamera
 local vp        = cam.ViewportSize
 local FRAME_W   = math.clamp(math.floor(vp.X * 0.82), 640, 940)
-local FRAME_H   = math.clamp(math.floor(vp.Y * 0.72), 430, 560)
+-- Cap height so frame + 20px offset always stays within screen bounds
+local raw_h   = math.floor(vp.Y * 0.72)
+local safe_h  = vp.Y - 82          -- leaves room for +20 offset + margins
+local FRAME_H = math.max(400, math.min(raw_h, math.min(560, safe_h)))
 local SIDEBAR_W = math.floor(FRAME_W * 0.26)
 local BAR_H     = 58
 
@@ -92,7 +95,7 @@ UI.ToggleBtn = ToggleBtn
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Name             = "MainFrame"
 MainFrame.Size             = UDim2.new(0,FRAME_W,0,FRAME_H)
-MainFrame.Position         = UDim2.new(0.5,-FRAME_W/2, 0.5,-FRAME_H/2 + 40)
+MainFrame.Position         = UDim2.new(0.5,-FRAME_W/2, 0.5,-FRAME_H/2 + 20)
 MainFrame.BackgroundColor3 = C.bg
 MainFrame.BorderSizePixel  = 0
 MainFrame.ClipsDescendants = true
