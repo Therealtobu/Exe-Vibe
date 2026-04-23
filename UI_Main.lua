@@ -217,7 +217,7 @@ PinIco.Position               = UDim2.new(0,6,0.5,-9)
 PinIco.BackgroundTransparency = 1
 PinIco.BorderSizePixel        = 0
 PinIco.ZIndex                 = 13
-PinIco.Image                  = "rbxassetid://84882204830861"
+PinIco.Image                  = "rbxassetid://108651088623287"
 PinIco.ScaleType              = Enum.ScaleType.Fit
 -- Push text right so it doesn't overlap icon
 PinBtn:FindFirstChildOfClass("UIPadding").PaddingLeft = UDim.new(0, 28)
@@ -986,9 +986,9 @@ UI.PlayerArtist = PlayerArtist
 
 local CTRL_CX = SIDEBAR_W + math.floor((FRAME_W - SIDEBAR_W) * 0.5)
 
-local PBAR_ASSET_PREV  = "rbxassetid://82102136991437"
+local PBAR_ASSET_PREV  = "rbxassetid://72693785960426"
 local PBAR_ASSET_PAUSE = "rbxassetid://97751235710224"
-local PBAR_ASSET_PLAY  = "rbxassetid://81905914153409"
+local PBAR_ASSET_PLAY  = "rbxassetid://72396954315758"
 local PBAR_ASSET_NEXT  = "rbxassetid://111765560089071"
 
 local function makeCtrlImg(assetId, absXOff, sz)
