@@ -185,14 +185,18 @@ local HOLD_TIME = 0.45   -- seconds before menu appears
 local CM = Instance.new("Frame", UI.ScreenGui)
 CM.Name             = "ContextMenu"
 CM.BackgroundColor3 = C.contextBg
-CM.Size             = UDim2.new(0, 218, 0, 0)    -- height animated in
+CM.Size             = UDim2.new(0, 218, 0, CM_FULL_H or 260)
 CM.BorderSizePixel  = 0
-CM.ClipsDescendants = true
+CM.ClipsDescendants = false
 CM.Visible          = false
 CM.ZIndex           = 500
 Instance.new("UICorner", CM).CornerRadius = UDim.new(0, 13)
 local cmStroke = Instance.new("UIStroke", CM)
 cmStroke.Color = C.border; cmStroke.Thickness = 1
+
+-- UIScale for Loader.lua-style tab open animation
+local CMScale = Instance.new("UIScale", CM)
+CMScale.Scale = 0.85
 
 -- Title (song name)
 local CMTitle = Instance.new("TextLabel", CM)
@@ -311,18 +315,37 @@ local function openCM(song, card)
     mx = math.clamp(mx, 8, scrW - 226)
     my = math.clamp(my, 8, scrH - CM_FULL_H - 8)
 
-    CM.Position = UDim2.new(0, mx, 0, my)
-    CM.Size     = UDim2.new(0, 218, 0, 0)
-    CM.Visible  = true
-    E.tween(CM, { Size = UDim2.new(0, 218, 0, CM_FULL_H) }, 0.22,
-        Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    CM.Position       = UDim2.new(0, mx, 0, my)
+    CM.Size           = UDim2.new(0, 218, 0, CM_FULL_H)
+    CM.Visible        = true
+    CM.BackgroundTransparency = 0.08
+    -- Loader.lua tab open animation: Scale 1.2 → 1, Exponential Out, 0.8s
+    CMScale.Scale = 1.2
+    TS:Create(CMScale,
+        TweenInfo.new(0.8, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+        { Scale = 1.0 }
+    ):Play()
+    -- Subtle Y slide (10px → 0)
+    CM.Position = UDim2.new(0, mx, 0, my + 10)
+    TS:Create(CM,
+        TweenInfo.new(0.45, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+        { Position = UDim2.new(0, mx, 0, my) }
+    ):Play()
 end
 
 local function closeCM()
     if not CM.Visible then return end
-    E.tween(CM, { Size = UDim2.new(0, 218, 0, 0) }, 0.15, Enum.EasingStyle.Quart)
-    task.delay(0.17, function()
+    TS:Create(CMScale,
+        TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+        { Scale = 0.85 }
+    ):Play()
+    TS:Create(CM,
+        TweenInfo.new(0.18, Enum.EasingStyle.Quart),
+        { BackgroundTransparency = 1 }
+    ):Play()
+    task.delay(0.22, function()
         CM.Visible = false
+        CM.BackgroundTransparency = 0.08
         cmSong = nil
     end)
 end

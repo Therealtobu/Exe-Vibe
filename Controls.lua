@@ -18,7 +18,10 @@ local function setNPPlayState(playing)
     if UI.NPBtnPlayImg then
         UI.NPBtnPlayImg.Visible = playing
     end
-    UI.NPBtnPlay.Text = playing and "" or "▶"
+    UI.NPBtnPlay.Text = ""
+    if UI.NPBtnPlayResumeImg then
+        UI.NPBtnPlayResumeImg.Visible = not playing
+    end
 end
 
 -- ============================================================
@@ -161,7 +164,7 @@ end)
 local windowOpen = false
 local FRAME_W  = E.FRAME_W or 760
 local FRAME_H  = E.FRAME_H or 470
-local Y_OFFSET = 40
+local Y_OFFSET = 10
 
 local function openWindow()
     windowOpen = true
@@ -221,7 +224,7 @@ UI.HamBtn.MouseButton1Click:Connect(function()
     local newSbW = E.State.sidebarOpen and SIDEBAR_W_F or 0
     E.tween(UI.Sidebar,     {Size = UDim2.new(0,newSbW,1,0)}, 0.26)
     E.tween(UI.ContentArea, {
-        Size     = UDim2.new(1,-newSbW,1,-BAR_H),
+        Size     = UDim2.new(1,-newSbW,1,0),
         Position = UDim2.new(0,newSbW,0,0)
     }, 0.26)
 end)
@@ -256,7 +259,7 @@ end
 
 local function navigateTo(pageName)
     E.State.currentPage = pageName
-    UI.PageTitle.Text   = pageName
+    -- PageTitle removed from UI
 
     -- Nav button highlight
     for name, btn in pairs(UI.navButtons) do

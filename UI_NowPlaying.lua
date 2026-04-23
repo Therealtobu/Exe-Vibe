@@ -17,8 +17,9 @@ local UIS = game:GetService("UserInputService")
 -- ============================================================
 --  ASSET IDs
 -- ============================================================
-local ASSET_PAUSE   = "rbxassetid://72396954315758"
-local ASSET_PREV    = "rbxassetid://72693785960426"
+local ASSET_PAUSE   = "rbxassetid://97751235710224"
+local ASSET_PLAY    = "rbxassetid://81905914153409"
+local ASSET_PREV    = "rbxassetid://82102136991437"
 local ASSET_NEXT    = "rbxassetid://111765560089071"
 local ASSET_SHUFFLE = "rbxassetid://74222790776317"
 local ASSET_REPEAT  = "rbxassetid://71635659455113"
@@ -235,13 +236,24 @@ NPBtnNext.TextSize   = 14
 NPBtnNext.TextColor3 = C.text
 
 -- Play/pause state:
---   Playing  → image visible (pause icon),  text = ""
---   Paused   → image hidden,                text = "▶"
+--   Playing  → pause image visible,  text = ""
+--   Paused   → play image visible,   text = ""
 NPBtnPlay.Font       = Enum.Font.GothamBold
 NPBtnPlay.TextSize   = 22
 NPBtnPlay.TextColor3 = C.text
-NPBtnPlayImg.Visible = false   -- default: not playing
-NPBtnPlay.Text       = "▶"
+NPBtnPlayImg.Visible = false   -- default: not playing (pause icon hidden)
+NPBtnPlay.Text       = ""
+
+-- Play/resume image (shown when paused)
+local NPBtnPlayResumeImg = Instance.new("ImageLabel", NPBtnPlay)
+NPBtnPlayResumeImg.Name                   = "ResumeIcon"
+NPBtnPlayResumeImg.Size                   = UDim2.new(1,0,1,0)
+NPBtnPlayResumeImg.BackgroundTransparency = 1
+NPBtnPlayResumeImg.Image                  = ASSET_PLAY
+NPBtnPlayResumeImg.ImageColor3            = C.text
+NPBtnPlayResumeImg.ZIndex                 = 24
+NPBtnPlayResumeImg.Visible                = true   -- default: show play icon
+UI.NPBtnPlayResumeImg = NPBtnPlayResumeImg
 
 UI.NPBtnPlayImg = NPBtnPlayImg   -- Controls.lua uses this
 
@@ -354,7 +366,7 @@ local function makeTogglePill(assetId, xOff)
     Instance.new("UICorner", pill).CornerRadius = UDim.new(0, TOGGLE_CR)
 
     local icon = Instance.new("ImageLabel", pill)
-    icon.Size                   = UDim2.new(0, 22, 0, 22)
+    icon.Size                   = UDim2.new(0, 28, 0, 28)
     icon.AnchorPoint            = Vector2.new(0.5, 0.5)
     icon.Position               = UDim2.new(0.5, 0, 0.5, 0)
     icon.BackgroundTransparency = 1
@@ -564,7 +576,10 @@ function E.openNowPlaying(song)
     -- Sync play/pause button
     local isPlaying = E.State.isPlaying
     UI.NPBtnPlayImg.Visible = isPlaying
-    UI.NPBtnPlay.Text       = isPlaying and "" or "▶"
+    UI.NPBtnPlay.Text       = ""
+    if UI.NPBtnPlayResumeImg then
+        UI.NPBtnPlayResumeImg.Visible = not isPlaying
+    end
 
     -- Already open → content updated, skip re-slide animation
     if E.State.nowPlayingOpen then return end

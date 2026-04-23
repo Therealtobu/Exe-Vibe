@@ -17,8 +17,8 @@ local cam       = workspace.CurrentCamera
 local vp        = cam.ViewportSize
 local FRAME_W   = math.clamp(math.floor(vp.X * 0.82), 640, 940)
 local raw_h     = math.floor(vp.Y * 0.72)
-local safe_h    = vp.Y - 82
-local FRAME_H   = math.max(400, math.min(raw_h, math.min(560, safe_h)))
+local safe_h    = vp.Y - 120  -- extra margin so PlayerBar stays on screen
+local FRAME_H   = math.max(380, math.min(raw_h, math.min(520, safe_h)))
 local SIDEBAR_W = math.floor(FRAME_W * 0.26)
 local BAR_H     = 58
 
@@ -98,7 +98,7 @@ MainFrame.Size             = UDim2.new(0,FRAME_W,0,FRAME_H)
 MainFrame.Position         = UDim2.new(0.5,-FRAME_W/2, 0.5,-FRAME_H/2 + 20)
 MainFrame.BackgroundColor3 = C.bg
 MainFrame.BorderSizePixel  = 0
-MainFrame.ClipsDescendants = true
+MainFrame.ClipsDescendants = false
 MainFrame.Visible          = false
 MainFrame.ZIndex           = 10
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0,20)
@@ -106,9 +106,22 @@ UI.MainFrame = MainFrame
 
 
 -- ============================================================
+--  CONTENT CLIP  (clips scroll content, never clips PlayerBar)
+-- ============================================================
+local ContentClip = Instance.new("Frame", MainFrame)
+ContentClip.Name             = "ContentClip"
+ContentClip.Size             = UDim2.new(1,0,1,-BAR_H)
+ContentClip.BackgroundTransparency = 1
+ContentClip.BorderSizePixel  = 0
+ContentClip.ClipsDescendants = true
+ContentClip.ZIndex           = 10
+Instance.new("UICorner", ContentClip).CornerRadius = UDim.new(0,20)
+UI.ContentClip = ContentClip
+
+-- ============================================================
 --  SIDEBAR
 -- ============================================================
-local Sidebar = Instance.new("Frame", MainFrame)
+local Sidebar = Instance.new("Frame", ContentClip)
 Sidebar.Name             = "Sidebar"
 Sidebar.Size             = UDim2.new(0,SIDEBAR_W,1,0)
 Sidebar.BackgroundColor3 = C.sidebar
@@ -124,19 +137,18 @@ SbRCover.BackgroundColor3 = C.sidebar
 SbRCover.BorderSizePixel  = 0
 SbRCover.ZIndex           = 11
 
-local LogoBadge = Instance.new("Frame", Sidebar)
-LogoBadge.Size             = UDim2.new(0,28,0,28)
-LogoBadge.Position         = UDim2.new(0,12,0,14)
-LogoBadge.BackgroundColor3 = C.accentBlue
-LogoBadge.BorderSizePixel  = 0
-LogoBadge.ZIndex           = 13
-LogoBadge.ClipsDescendants = true
-Instance.new("UICorner", LogoBadge).CornerRadius = UDim.new(0,6)
-makeWaveform(LogoBadge, Color3.new(1,1,1), 14, 28)
+local LogoBadge = Instance.new("ImageLabel", Sidebar)
+LogoBadge.Size                   = UDim2.new(0,28,0,28)
+LogoBadge.Position               = UDim2.new(0,12,0,14)
+LogoBadge.BackgroundTransparency = 1
+LogoBadge.BorderSizePixel        = 0
+LogoBadge.ZIndex                 = 13
+LogoBadge.Image                  = "rbxassetid://77847099845882"
+LogoBadge.ScaleType              = Enum.ScaleType.Fit
 
 local LogoText = Instance.new("TextLabel", Sidebar)
 LogoText.Size             = UDim2.new(1,-50,0,28)
-LogoText.Position         = UDim2.new(0,46,0,14)
+LogoText.Position         = UDim2.new(0,46,0,20)
 LogoText.BackgroundTransparency = 1
 LogoText.Text             = "Exvibe"
 LogoText.TextColor3       = C.text
@@ -178,7 +190,6 @@ local function makeNavBtn(name, y)
     return btn
 end
 
-sbLabel("MASTERS", 56)
 local navButtons = {}
 local navPages   = {"Discovery", "Search", "Library"}
 local navY = 74
@@ -191,28 +202,29 @@ UI.navButtons = navButtons
 local SbDiv = Instance.new("Frame", Sidebar)
 SbDiv.Size             = UDim2.new(1,-16,0,1)
 SbDiv.Position         = UDim2.new(0,8,0,navY+4)
-SbDiv.BackgroundColor3 = C.border
+SbDiv.BackgroundTransparency = 1  -- divider hidden
 SbDiv.BorderSizePixel  = 0
 SbDiv.ZIndex           = 12
 
 sbLabel("PINS", navY+12)
-local PinBtn = makeNavBtn("  Playlist", navY+28)
-local PinIco = Instance.new("Frame", PinBtn)
-PinIco.Size             = UDim2.new(0,18,0,18)
-PinIco.Position         = UDim2.new(0,6,0.5,-9)
-PinIco.BackgroundColor3 = C.card
-PinIco.BorderSizePixel  = 0
-PinIco.ZIndex           = 13
-PinIco.ClipsDescendants = true
-Instance.new("UICorner", PinIco).CornerRadius = UDim.new(0,4)
-makeWaveform(PinIco, C.subText, 14, 18)
+local PinBtn = makeNavBtn("Playlist", navY+32)
+local PinIco = Instance.new("ImageLabel", PinBtn)
+PinIco.Size                   = UDim2.new(0,18,0,18)
+PinIco.Position               = UDim2.new(0,6,0.5,-9)
+PinIco.BackgroundTransparency = 1
+PinIco.BorderSizePixel        = 0
+PinIco.ZIndex                 = 13
+PinIco.Image                  = "rbxassetid://84882204830861"
+PinIco.ScaleType              = Enum.ScaleType.Fit
+-- Push text right so it doesn't overlap icon
+PinBtn:FindFirstChildOfClass("UIPadding").PaddingLeft = UDim.new(0, 28)
 
 -- ============================================================
 --  CONTENT AREA
 -- ============================================================
-local ContentArea = Instance.new("Frame", MainFrame)
+local ContentArea = Instance.new("Frame", ContentClip)
 ContentArea.Name             = "ContentArea"
-ContentArea.Size             = UDim2.new(1,-SIDEBAR_W,1,-BAR_H)
+ContentArea.Size             = UDim2.new(1,-SIDEBAR_W,1,0)
 ContentArea.Position         = UDim2.new(0,SIDEBAR_W,0,0)
 ContentArea.BackgroundTransparency = 1
 ContentArea.ClipsDescendants = true
@@ -225,10 +237,21 @@ TopBar.BackgroundTransparency = 1
 TopBar.ZIndex           = 12
 UI.TopBar = TopBar
 
+local CloseBtn = Instance.new("ImageButton", TopBar)
+CloseBtn.Size             = UDim2.new(0,30,0,30)
+CloseBtn.Position         = UDim2.new(1,-36,0.5,-15)
+CloseBtn.BackgroundTransparency = 1
+CloseBtn.Image            = "rbxassetid://128680767530455"
+CloseBtn.ScaleType        = Enum.ScaleType.Fit
+CloseBtn.BorderSizePixel  = 0
+CloseBtn.AutoButtonColor  = false
+CloseBtn.ZIndex           = 13
+UI.CloseBtn = CloseBtn
+
 local HamBtn = Instance.new("TextButton", TopBar)
 HamBtn.Size             = UDim2.new(0,32,0,32)
-HamBtn.Position         = UDim2.new(0,10,0.5,-16)
-HamBtn.BackgroundColor3 = C.card
+HamBtn.Position         = UDim2.new(1,-72,0.5,-16)
+HamBtn.BackgroundTransparency = 1
 HamBtn.Text             = "≡"
 HamBtn.TextColor3       = C.text
 HamBtn.Font             = Enum.Font.GothamBold
@@ -236,34 +259,7 @@ HamBtn.TextSize         = 18
 HamBtn.BorderSizePixel  = 0
 HamBtn.AutoButtonColor  = false
 HamBtn.ZIndex           = 13
-Instance.new("UICorner", HamBtn).CornerRadius = UDim.new(0,6)
 UI.HamBtn = HamBtn
-
-local PageTitle = Instance.new("TextLabel", TopBar)
-PageTitle.Size             = UDim2.new(1,-96,1,0)
-PageTitle.Position         = UDim2.new(0,50,0,0)
-PageTitle.BackgroundTransparency = 1
-PageTitle.Text             = "Discovery"
-PageTitle.TextColor3       = C.text
-PageTitle.Font             = Enum.Font.GothamBold
-PageTitle.TextSize         = 16
-PageTitle.TextXAlignment   = Enum.TextXAlignment.Left
-PageTitle.ZIndex           = 13
-UI.PageTitle = PageTitle
-
-local CloseBtn = Instance.new("TextButton", TopBar)
-CloseBtn.Size             = UDim2.new(0,30,0,30)
-CloseBtn.Position         = UDim2.new(1,-36,0.5,-15)
-CloseBtn.BackgroundColor3 = C.card
-CloseBtn.Text             = "X"
-CloseBtn.TextColor3       = C.subText
-CloseBtn.Font             = Enum.Font.GothamBold
-CloseBtn.TextSize         = 14
-CloseBtn.BorderSizePixel  = 0
-CloseBtn.AutoButtonColor  = false
-CloseBtn.ZIndex           = 13
-Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(1,0)
-UI.CloseBtn = CloseBtn
 
 -- Page container (below TopBar)
 local PageContainer = Instance.new("Frame", ContentArea)
@@ -375,12 +371,11 @@ local function makeSongCard(song, parent, layoutOrder)
     card.Name = "SongCard_"..song.id
     card.Size = UDim2.new(0,CW,0,CH)
     card.LayoutOrder = layoutOrder
-    card.BackgroundColor3 = C.card
+    card.BackgroundTransparency = 1
     card.BorderSizePixel = 0
     card.Text = ""
     card.AutoButtonColor = false
     card.ZIndex = 14
-    Instance.new("UICorner", card).CornerRadius = UDim.new(0,10)
 
     local art = Instance.new("ImageLabel", card)
     art.Size = UDim2.new(1,-10,0,92)
@@ -389,24 +384,7 @@ local function makeSongCard(song, parent, layoutOrder)
     art.BorderSizePixel = 0
     art.Image = song.cover
     art.ZIndex = 15
-    Instance.new("UICorner", art).CornerRadius = UDim.new(0,6)
-
-    local pin = Instance.new("Frame", art)
-    pin.Size             = UDim2.new(0,16,0,16)
-    pin.Position         = UDim2.new(1,-20,0,4)
-    pin.BackgroundColor3 = Color3.fromRGB(200,40,40)
-    pin.BackgroundTransparency = 0.2
-    pin.BorderSizePixel  = 0
-    pin.ZIndex           = 16
-    Instance.new("UICorner", pin).CornerRadius = UDim.new(1,0)
-    local pt = Instance.new("TextLabel", pin)
-    pt.Size = UDim2.new(1,0,1,0)
-    pt.BackgroundTransparency = 1
-    pt.Text = "+"
-    pt.TextColor3 = Color3.new(1,1,1)
-    pt.Font = Enum.Font.GothamBold
-    pt.TextSize = 10
-    pt.ZIndex = 17
+    Instance.new("UICorner", art).CornerRadius = UDim.new(0,12)
 
     local tl = Instance.new("TextLabel", card)
     tl.Size = UDim2.new(1,-10,0,13)
@@ -432,8 +410,6 @@ local function makeSongCard(song, parent, layoutOrder)
     al.TextTruncate = Enum.TextTruncate.AtEnd
     al.ZIndex = 15
 
-    card.MouseEnter:Connect(function() E.tween(card,{BackgroundColor3=C.cardHover},0.12) end)
-    card.MouseLeave:Connect(function() E.tween(card,{BackgroundColor3=C.card},0.12) end)
     return card
 end
 E.makeSongCard = makeSongCard
@@ -915,9 +891,16 @@ PlayerBar.Size             = UDim2.new(1,0,0,BAR_H)
 PlayerBar.Position         = UDim2.new(0,0,1,-BAR_H)
 PlayerBar.BackgroundColor3 = C.playerBg
 PlayerBar.BorderSizePixel  = 0
-PlayerBar.ZIndex           = 14
-
-Instance.new("UICorner", PlayerBar).CornerRadius = UDim.new(0,20)
+PlayerBar.ZIndex           = 20
+-- Bottom corners rounded by adding UICorner – top covered by ContentClip
+local PBCorner = Instance.new("UICorner", PlayerBar)
+PBCorner.CornerRadius = UDim.new(0,20)
+-- Square off top corners with a fill strip
+local PBTopFill = Instance.new("Frame", PlayerBar)
+PBTopFill.Size             = UDim2.new(1,0,0,22)
+PBTopFill.BackgroundColor3 = C.playerBg
+PBTopFill.BorderSizePixel  = 0
+PBTopFill.ZIndex           = 20
 UI.PlayerBar = PlayerBar
 
 local ProgBg = Instance.new("Frame", PlayerBar)
