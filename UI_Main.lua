@@ -217,7 +217,7 @@ PinIco.Position               = UDim2.new(0,8,0.5,-10)
 PinIco.BackgroundTransparency = 1
 PinIco.BorderSizePixel        = 0
 PinIco.ZIndex                 = 13
-PinIco.Image                  = "rbxassetid://84882204830861"
+PinIco.Image                  = "rbxassetid://108651088623287"
 PinIco.ScaleType              = Enum.ScaleType.Fit
 -- Push text right so it doesn't overlap icon
 PinBtn:FindFirstChildOfClass("UIPadding").PaddingLeft = UDim.new(0, 34)
