@@ -314,7 +314,7 @@ local function makePage(name)
     sf.ScrollBarThickness = 2
     sf.ScrollBarImageColor3 = C.border
     sf.CanvasSize       = UDim2.new(0,0,0,0)
-    sf.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    pcall(function() sf.AutomaticCanvasSize = Enum.AutomaticSize.Y end)
     sf.ZIndex           = 12
 
     local layout = Instance.new("UIListLayout", sf)
@@ -364,7 +364,7 @@ local function makeHSection(title, height, order, parent)
     hs.BorderSizePixel = 0
     hs.ScrollBarThickness = 0
     hs.CanvasSize = UDim2.new(0,0,1,0)
-    hs.AutomaticCanvasSize = Enum.AutomaticSize.X
+    pcall(function() hs.AutomaticCanvasSize = Enum.AutomaticSize.X end)
     hs.ScrollingDirection = Enum.ScrollingDirection.X
     hs.ZIndex = 13
 
@@ -607,6 +607,7 @@ SearchClearScale.Scale = 0
 UI.SearchClearScale = SearchClearScale
 
 -- Scroll area starts below the search bar
+assert(SearchScroll, "[Exvibe] SearchScroll is nil – makePage failed")
 SearchScroll.Size     = UDim2.new(1,0,1,-56)
 SearchScroll.Position = UDim2.new(0,0,0,56)
 

@@ -593,7 +593,7 @@ DBListSF.BorderSizePixel  = 0
 DBListSF.ScrollBarThickness = 2
 DBListSF.ScrollBarImageColor3 = C.border
 DBListSF.CanvasSize       = UDim2.new(0, 0, 0, 0)
-DBListSF.AutomaticCanvasSize = Enum.AutomaticSize.Y
+pcall(function() DBListSF.AutomaticCanvasSize = Enum.AutomaticSize.Y end)
 DBListSF.ZIndex           = 402
 Instance.new("UIListLayout", DBListSF).Padding = UDim.new(0, 1)
 
@@ -606,7 +606,7 @@ DBRight.BorderSizePixel  = 0
 DBRight.ScrollBarThickness = 2
 DBRight.ScrollBarImageColor3 = C.border
 DBRight.CanvasSize       = UDim2.new(0, 0, 0, 0)
-DBRight.AutomaticCanvasSize = Enum.AutomaticSize.Y
+pcall(function() DBRight.AutomaticCanvasSize = Enum.AutomaticSize.Y end)
 DBRight.ZIndex           = 401
 local rfLayout = Instance.new("UIListLayout", DBRight)
 rfLayout.Padding   = UDim.new(0, 6)

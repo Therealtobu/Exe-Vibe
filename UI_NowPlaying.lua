@@ -432,7 +432,7 @@ QueueScroll.BorderSizePixel  = 0
 QueueScroll.ScrollBarThickness = 2
 QueueScroll.ScrollBarImageColor3 = C.border
 QueueScroll.CanvasSize       = UDim2.new(0,0,0,0)
-QueueScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+pcall(function() QueueScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y end)
 QueueScroll.ZIndex           = 22
 UI.QueueScroll = QueueScroll
 
