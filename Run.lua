@@ -10,7 +10,7 @@
 --    3. Make sure HttpService is enabled in game settings.
 -- ============================================================
 
-local BASE_URL = "loadstring(game:HttpGet("https://raw.githubusercontent.com/Therealtobu/Exe-Vibe/main/Run.lua"))()"
+local BASE_URL = "https://raw.githubusercontent.com/Therealtobu/Exe-Vibe/main/"
 
 local MODULES = {
     "Config",

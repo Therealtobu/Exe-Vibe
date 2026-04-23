@@ -221,7 +221,7 @@ UI.HamBtn.MouseButton1Click:Connect(function()
     local newSbW = E.State.sidebarOpen and SIDEBAR_W_F or 0
     E.tween(UI.Sidebar,     {Size = UDim2.new(0,newSbW,1,0)}, 0.26)
     E.tween(UI.ContentArea, {
-        Size     = UDim2.new(1,-newSbW,1,0),
+        Size     = UDim2.new(1,-newSbW,1,-BAR_H),
         Position = UDim2.new(0,newSbW,0,0)
     }, 0.26)
 end)

@@ -98,33 +98,17 @@ MainFrame.Size             = UDim2.new(0,FRAME_W,0,FRAME_H)
 MainFrame.Position         = UDim2.new(0.5,-FRAME_W/2, 0.5,-FRAME_H/2 + 20)
 MainFrame.BackgroundColor3 = C.bg
 MainFrame.BorderSizePixel  = 0
-MainFrame.ClipsDescendants = false
+MainFrame.ClipsDescendants = true
 MainFrame.Visible          = false
 MainFrame.ZIndex           = 10
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0,20)
 UI.MainFrame = MainFrame
 
--- Content clip mask (clips scroll content, not PlayerBar)
-local ContentMask = Instance.new("Frame", MainFrame)
-ContentMask.Name             = "ContentMask"
-ContentMask.Size             = UDim2.new(1,0,1,-BAR_H)
-ContentMask.BackgroundColor3 = C.bg
-ContentMask.BorderSizePixel  = 0
-ContentMask.ClipsDescendants = true
-ContentMask.ZIndex           = 10
-Instance.new("UICorner", ContentMask).CornerRadius = UDim.new(0,20)
--- Fill bottom corners of mask so top-half looks seamless
-local MaskBotFill = Instance.new("Frame", ContentMask)
-MaskBotFill.Size             = UDim2.new(1,0,0,22)
-MaskBotFill.Position         = UDim2.new(0,0,1,-22)
-MaskBotFill.BackgroundColor3 = C.bg
-MaskBotFill.BorderSizePixel  = 0
-MaskBotFill.ZIndex           = 10
 
 -- ============================================================
 --  SIDEBAR
 -- ============================================================
-local Sidebar = Instance.new("Frame", ContentMask)
+local Sidebar = Instance.new("Frame", MainFrame)
 Sidebar.Name             = "Sidebar"
 Sidebar.Size             = UDim2.new(0,SIDEBAR_W,1,0)
 Sidebar.BackgroundColor3 = C.sidebar
@@ -226,9 +210,9 @@ makeWaveform(PinIco, C.subText, 14, 18)
 -- ============================================================
 --  CONTENT AREA
 -- ============================================================
-local ContentArea = Instance.new("Frame", ContentMask)
+local ContentArea = Instance.new("Frame", MainFrame)
 ContentArea.Name             = "ContentArea"
-ContentArea.Size             = UDim2.new(1,-SIDEBAR_W,1,0)
+ContentArea.Size             = UDim2.new(1,-SIDEBAR_W,1,-BAR_H)
 ContentArea.Position         = UDim2.new(0,SIDEBAR_W,0,0)
 ContentArea.BackgroundTransparency = 1
 ContentArea.ClipsDescendants = true
@@ -923,7 +907,7 @@ end
 E.rebuildLibrary()
 
 -- ============================================================
---  PLAYER BAR  (direct child of MainFrame, not ContentMask)
+--  PLAYER BAR
 -- ============================================================
 local PlayerBar = Instance.new("Frame", MainFrame)
 PlayerBar.Name             = "PlayerBar"
@@ -932,12 +916,7 @@ PlayerBar.Position         = UDim2.new(0,0,1,-BAR_H)
 PlayerBar.BackgroundColor3 = C.playerBg
 PlayerBar.BorderSizePixel  = 0
 PlayerBar.ZIndex           = 14
--- Top fill covers the seam between ContentMask and PlayerBar
-local PBFix = Instance.new("Frame", PlayerBar)
-PBFix.Size             = UDim2.new(1,0,0,4)
-PBFix.BackgroundColor3 = C.playerBg
-PBFix.BorderSizePixel  = 0
-PBFix.ZIndex           = 14
+
 Instance.new("UICorner", PlayerBar).CornerRadius = UDim.new(0,20)
 UI.PlayerBar = PlayerBar
 
