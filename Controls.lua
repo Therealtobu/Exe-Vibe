@@ -31,7 +31,7 @@ function E.animateCoverFly(fromAbsPos, fromAbsSize, song, npAlreadyOpen)
     task.spawn(function()
         -- Wait until the NowPlaying sheet finishes sliding (0.40s) before reading
         -- AbsolutePosition, otherwise toPos is captured mid-animation → offset bug.
-        if not npAlreadyOpen then task.wait(0.44) end
+        if not npAlreadyOpen then task.wait(0.44) else task.wait(0) end
         local npArt = UI.NPArt
         if not npArt then return end
         local toPos = npArt.AbsolutePosition
@@ -179,10 +179,10 @@ local function openWindow()
     E.tween(UI.Backdrop, {BackgroundTransparency = 0.45}, 0.30, Enum.EasingStyle.Quint)
     UI.MainFrame.Visible = true
     UI.MainFrame.BackgroundTransparency = 1
-    UI.MainFrame.Position = UDim2.new(0.5,-FRAME_W/2, 0.5,-FRAME_H/2+Y_OFFSET+20)
+    UI.MainFrame.Position = UDim2.new(0.5,-FRAME_W/2, 1, -FRAME_H + 20)
     E.tween(UI.MainFrame, {
         BackgroundTransparency = 0,
-        Position = UDim2.new(0.5,-FRAME_W/2, 0.5,-FRAME_H/2+Y_OFFSET)
+        Position = UDim2.new(0.5,-FRAME_W/2, 1, -FRAME_H)
     }, 0.38, Enum.EasingStyle.Quint)
     E.tween(UI.navButtons["Discovery"] or next(UI.navButtons),
         {BackgroundColor3 = C.card, TextColor3 = C.text}, 0.15)
@@ -195,7 +195,7 @@ local function closeWindow()
     E.tween(UI.Backdrop, {BackgroundTransparency = 1}, 0.26, Enum.EasingStyle.Quint)
     local t = E.tween(UI.MainFrame, {
         BackgroundTransparency = 1,
-        Position = UDim2.new(0.5,-FRAME_W/2, 0.5,-FRAME_H/2+Y_OFFSET+20)
+        Position = UDim2.new(0.5,-FRAME_W/2, 1, -FRAME_H + 20)
     }, 0.28, Enum.EasingStyle.Quint)
     t.Completed:Connect(function()
         UI.MainFrame.Visible = false
@@ -333,9 +333,6 @@ RunService.Heartbeat:Connect(function()
     E.tween(UI.ProgFill, {Size = UDim2.new(p,0,1,0)}, 0.5, Enum.EasingStyle.Linear)
     if E.State.nowPlayingOpen then
         E.tween(UI.NPProgFill, {Size = UDim2.new(p,0,1,0)}, 0.5, Enum.EasingStyle.Linear)
-        if UI.NPProgDot then
-            E.tween(UI.NPProgDot, {Position = UDim2.new(p,-6,0.5,-6)}, 0.5, Enum.EasingStyle.Linear)
-        end
         UI.NPTimeCurrent.Text = E.formatTime(Eng:getPosition())
     end
 end)
@@ -385,9 +382,6 @@ UserInputService.InputChanged:Connect(function(inp)
             Eng:seekTo(frac)
             -- Update UI immediately while dragging
             UI.NPProgFill.Size = UDim2.new(frac, 0, 1, 0)
-            if UI.NPProgDot then
-                UI.NPProgDot.Position = UDim2.new(frac, -6, 0.5, -6)
-            end
             UI.NPTimeCurrent.Text = E.formatTime(Eng:getPosition())
         end
     end

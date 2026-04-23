@@ -95,7 +95,7 @@ UI.ToggleBtn = ToggleBtn
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Name             = "MainFrame"
 MainFrame.Size             = UDim2.new(0,FRAME_W,0,FRAME_H)
-MainFrame.Position         = UDim2.new(0.5,-FRAME_W/2, 0.5,-FRAME_H/2 + 20)
+MainFrame.Position         = UDim2.new(0.5,-FRAME_W/2, 1, -FRAME_H)
 MainFrame.BackgroundColor3 = C.bg
 MainFrame.BorderSizePixel  = 0
 MainFrame.ClipsDescendants = false
@@ -212,15 +212,15 @@ SbDiv.ZIndex           = 12
 sbLabel("PINS", navY+12)
 local PinBtn = makeNavBtn("Playlist", navY+32)
 local PinIco = Instance.new("ImageLabel", PinBtn)
-PinIco.Size                   = UDim2.new(0,18,0,18)
-PinIco.Position               = UDim2.new(0,6,0.5,-9)
+PinIco.Size                   = UDim2.new(0,20,0,20)
+PinIco.Position               = UDim2.new(0,8,0.5,-10)
 PinIco.BackgroundTransparency = 1
 PinIco.BorderSizePixel        = 0
 PinIco.ZIndex                 = 13
-PinIco.Image                  = "rbxassetid://108651088623287"
+PinIco.Image                  = "rbxassetid://84882204830861"
 PinIco.ScaleType              = Enum.ScaleType.Fit
 -- Push text right so it doesn't overlap icon
-PinBtn:FindFirstChildOfClass("UIPadding").PaddingLeft = UDim.new(0, 28)
+PinBtn:FindFirstChildOfClass("UIPadding").PaddingLeft = UDim.new(0, 34)
 
 -- ============================================================
 --  CONTENT AREA
@@ -924,6 +924,7 @@ local ProfileAvatar = Instance.new("ImageLabel", PlayerBar)
 ProfileAvatar.Size             = UDim2.new(0,26,0,26)
 ProfileAvatar.Position         = UDim2.new(0,10,0.5,-13)
 ProfileAvatar.BackgroundColor3 = C.accentBlue
+ProfileAvatar.BackgroundTransparency = 1
 ProfileAvatar.BorderSizePixel  = 0
 ProfileAvatar.ZIndex           = 15
 Instance.new("UICorner", ProfileAvatar).CornerRadius = UDim.new(1,0)
@@ -954,6 +955,7 @@ local PlayerThumb = Instance.new("ImageLabel", PlayerBar)
 PlayerThumb.Size             = UDim2.new(0,34,0,34)
 PlayerThumb.Position         = UDim2.new(0,SIDEBAR_W+8,0.5,-17)
 PlayerThumb.BackgroundColor3 = C.card
+PlayerThumb.BackgroundTransparency = 1
 PlayerThumb.BorderSizePixel  = 0
 PlayerThumb.ZIndex           = 15
 Instance.new("UICorner", PlayerThumb).CornerRadius = UDim.new(0,6)
@@ -986,9 +988,9 @@ UI.PlayerArtist = PlayerArtist
 
 local CTRL_CX = SIDEBAR_W + math.floor((FRAME_W - SIDEBAR_W) * 0.5)
 
-local PBAR_ASSET_PREV  = "rbxassetid://72693785960426"
+local PBAR_ASSET_PREV  = "rbxassetid://82102136991437"
 local PBAR_ASSET_PAUSE = "rbxassetid://97751235710224"
-local PBAR_ASSET_PLAY  = "rbxassetid://72396954315758"
+local PBAR_ASSET_PLAY  = "rbxassetid://81905914153409"
 local PBAR_ASSET_NEXT  = "rbxassetid://111765560089071"
 
 local function makeCtrlImg(assetId, absXOff, sz)

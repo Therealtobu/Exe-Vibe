@@ -17,9 +17,9 @@ local UIS = game:GetService("UserInputService")
 -- ============================================================
 --  ASSET IDs
 -- ============================================================
-local ASSET_PAUSE   = "rbxassetid://72396954315758"
-local ASSET_PLAY    = "rbxassetid://118586721126452"
-local ASSET_PREV    = "rbxassetid://72693785960426"
+local ASSET_PAUSE   = "rbxassetid://97751235710224"
+local ASSET_PLAY    = "rbxassetid://81905914153409"
+local ASSET_PREV    = "rbxassetid://82102136991437"
 local ASSET_NEXT    = "rbxassetid://111765560089071"
 local ASSET_SHUFFLE = "rbxassetid://74222790776317"
 local ASSET_REPEAT  = "rbxassetid://71635659455113"
@@ -38,11 +38,11 @@ local RIGHT_X   = DIVIDER_X + 10
 local RIGHT_W   = FW - RIGHT_X - 16
 
 local CONTENT_H = FH - PANEL_Y
-local ART_PAD   = 20
-local BELOW_ART = 200   -- increased buffer to prevent bottom clip
+local ART_PAD   = 10
+local BELOW_ART = 155   -- reduced to allow larger art
 local ART_SIZE  = math.min(LEFT_W - ART_PAD, CONTENT_H - 14 - BELOW_ART - 10)
 local ART_X     = math.floor((LEFT_W - ART_SIZE) / 2)
-local INFO_PAD  = math.max(10, ART_X)
+local INFO_PAD  = 14    -- fixed small padding for text/bars (not ART_X dependent)
 
 local ART_Y    = 12
 local TITLE_Y  = ART_Y + ART_SIZE + 14
@@ -113,20 +113,50 @@ NPArt.BackgroundColor3 = C.card
 NPArt.BorderSizePixel  = 0
 NPArt.ScaleType        = Enum.ScaleType.Crop
 NPArt.ZIndex           = 22
-Instance.new("UICorner", NPArt).CornerRadius = UDim.new(0,14)
+Instance.new("UICorner", NPArt).CornerRadius = UDim.new(0,10)
 local ArtStroke = Instance.new("UIStroke", NPArt)
 ArtStroke.Color     = C.border
 ArtStroke.Thickness = 1.5
 ArtStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
+-- Exvibe badge overlay on bottom of cover
+local ExvibeBadge = Instance.new("Frame", LeftPanel)
+ExvibeBadge.Name                  = "ExvibeBadge"
+ExvibeBadge.Size                  = UDim2.new(0, 86, 0, 22)
+ExvibeBadge.Position              = UDim2.new(0, ART_X + 8, 0, ART_Y + ART_SIZE - 30)
+ExvibeBadge.BackgroundColor3      = Color3.fromRGB(0, 0, 0)
+ExvibeBadge.BackgroundTransparency = 0.30
+ExvibeBadge.BorderSizePixel       = 0
+ExvibeBadge.ZIndex                = 23
+Instance.new("UICorner", ExvibeBadge).CornerRadius = UDim.new(1, 0)
+
+local BadgeLogo = Instance.new("ImageLabel", ExvibeBadge)
+BadgeLogo.Size                   = UDim2.new(0, 14, 0, 14)
+BadgeLogo.Position               = UDim2.new(0, 6, 0.5, -7)
+BadgeLogo.BackgroundTransparency = 1
+BadgeLogo.Image                  = "rbxassetid://77847099845882"
+BadgeLogo.ScaleType              = Enum.ScaleType.Fit
+BadgeLogo.ZIndex                 = 24
+
+local BadgeText = Instance.new("TextLabel", ExvibeBadge)
+BadgeText.Size             = UDim2.new(1, -24, 1, 0)
+BadgeText.Position         = UDim2.new(0, 22, 0, 0)
+BadgeText.BackgroundTransparency = 1
+BadgeText.Text             = "Exvibe"
+BadgeText.TextColor3       = Color3.new(1, 1, 1)
+BadgeText.Font             = Enum.Font.GothamSemibold
+BadgeText.TextSize         = 11
+BadgeText.TextXAlignment   = Enum.TextXAlignment.Left
+BadgeText.ZIndex           = 24
+
 local NPTitle = Instance.new("TextLabel", LeftPanel)
-NPTitle.Size             = UDim2.new(1,-INFO_PAD*2,0,20)
+NPTitle.Size             = UDim2.new(1,-INFO_PAD*2,0,22)
 NPTitle.Position         = UDim2.new(0,INFO_PAD,0,TITLE_Y)
 NPTitle.BackgroundTransparency = 1
 NPTitle.Text             = "Not Playing"
 NPTitle.TextColor3       = C.text
 NPTitle.Font             = Enum.Font.GothamBold
-NPTitle.TextSize         = 16
+NPTitle.TextSize         = 18
 NPTitle.TextXAlignment   = Enum.TextXAlignment.Left
 NPTitle.TextTruncate     = Enum.TextTruncate.AtEnd
 NPTitle.ZIndex           = 22
@@ -143,27 +173,21 @@ NPArtist.TextXAlignment   = Enum.TextXAlignment.Left
 NPArtist.ZIndex           = 22
 
 local NPProgBg = Instance.new("Frame", LeftPanel)
-NPProgBg.Size             = UDim2.new(1,-INFO_PAD*2,0,4)
+NPProgBg.Size             = UDim2.new(1,-INFO_PAD*2,0,5)
 NPProgBg.Position         = UDim2.new(0,INFO_PAD,0,PROG_Y)
-NPProgBg.BackgroundColor3 = Color3.fromRGB(70,70,84)
+NPProgBg.BackgroundColor3 = Color3.fromRGB(55,55,68)
 NPProgBg.BorderSizePixel  = 0
 NPProgBg.ZIndex           = 22
 Instance.new("UICorner", NPProgBg).CornerRadius = UDim.new(1,0)
 
 local NPProgFill = Instance.new("Frame", NPProgBg)
 NPProgFill.Size             = UDim2.new(0,0,1,0)
-NPProgFill.BackgroundColor3 = C.accent
+NPProgFill.BackgroundColor3 = Color3.fromRGB(145, 145, 165)
 NPProgFill.BorderSizePixel  = 0
 NPProgFill.ZIndex           = 23
 Instance.new("UICorner", NPProgFill).CornerRadius = UDim.new(1,0)
 
-local NPProgDot = Instance.new("Frame", NPProgBg)
-NPProgDot.Size             = UDim2.new(0,12,0,12)
-NPProgDot.Position         = UDim2.new(0,-6,0.5,-6)
-NPProgDot.BackgroundColor3 = Color3.new(1,1,1)
-NPProgDot.BorderSizePixel  = 0
-NPProgDot.ZIndex           = 24
-Instance.new("UICorner", NPProgDot).CornerRadius = UDim.new(1,0)
+-- NPProgDot removed (no knob on timeline)
 
 local NPTimeCurrent = Instance.new("TextLabel", LeftPanel)
 NPTimeCurrent.Size             = UDim2.new(0,44,0,13)
@@ -271,16 +295,16 @@ NPVolLow.TextColor3       = C.subText
 NPVolLow.ZIndex           = 22
 
 local NPVolBg = Instance.new("Frame", LeftPanel)
-NPVolBg.Size             = UDim2.new(1,-INFO_PAD*2-42,0,4)
+NPVolBg.Size             = UDim2.new(1,-INFO_PAD*2-42,0,5)
 NPVolBg.Position         = UDim2.new(0,INFO_PAD+22,0,VOL_Y+7)
-NPVolBg.BackgroundColor3 = Color3.fromRGB(70,70,84)
+NPVolBg.BackgroundColor3 = Color3.fromRGB(55,55,68)
 NPVolBg.BorderSizePixel  = 0
 NPVolBg.ZIndex           = 22
 Instance.new("UICorner", NPVolBg).CornerRadius = UDim.new(1,0)
 
 local NPVolFill = Instance.new("Frame", NPVolBg)
 NPVolFill.Size             = UDim2.new(E.State.volume or 0.8, 0, 1, 0)
-NPVolFill.BackgroundColor3 = C.accent
+NPVolFill.BackgroundColor3 = Color3.fromRGB(145, 145, 165)
 NPVolFill.BorderSizePixel  = 0
 NPVolFill.ZIndex           = 23
 Instance.new("UICorner", NPVolFill).CornerRadius = UDim.new(1,0)
@@ -300,7 +324,6 @@ UI.NPTitle       = NPTitle
 UI.NPArtist      = NPArtist
 UI.NPProgFill    = NPProgFill
 UI.NPProgBg      = NPProgBg
-UI.NPProgDot     = NPProgDot
 UI.NPTimeCurrent = NPTimeCurrent
 UI.NPTimeTotal   = NPTimeTotal
 UI.NPBtnPrev     = NPBtnPrev
@@ -369,12 +392,13 @@ local function makeTogglePill(assetId, xOff)
     Instance.new("UICorner", pill).CornerRadius = UDim.new(0, TOGGLE_CR)
 
     local icon = Instance.new("ImageLabel", pill)
-    icon.Size                   = UDim2.new(0, 28, 0, 28)
+    icon.Size                   = UDim2.new(0, 22, 0, 22)
     icon.AnchorPoint            = Vector2.new(0.5, 0.5)
     icon.Position               = UDim2.new(0.5, 0, 0.5, 0)
     icon.BackgroundTransparency = 1
     icon.Image                  = assetId
     icon.ImageColor3            = C.text
+    icon.ScaleType              = Enum.ScaleType.Fit
     icon.ZIndex                 = 23
 
     local btn = Instance.new("TextButton", pill)
@@ -541,21 +565,16 @@ end
 
 E.buildQueue()
 
-local function makeActionBtn(icon, xOff)
-    local b = Instance.new("TextButton", RightPanel)
-    b.Size             = UDim2.new(0,38,0,38)
-    b.Position         = UDim2.new(0,xOff,1,-42)
-    b.BackgroundTransparency = 1
-    b.Text             = icon
-    b.TextColor3       = C.subText
-    b.Font             = Enum.Font.GothamBold
-    b.TextSize         = 16
-    b.ZIndex           = 22
-    return b
-end
-makeActionBtn(">_",   0)
-makeActionBtn("=+",  50)
-makeActionBtn("...", 100)
+-- ============================================================
+--  INPUT BLOCKER  (prevents clicking through NowPlaying to cards below)
+-- ============================================================
+local NPInputBlock = Instance.new("TextButton", Sheet)
+NPInputBlock.Name                   = "NPInputBlock"
+NPInputBlock.Size                   = UDim2.new(1,0,1,0)
+NPInputBlock.BackgroundTransparency = 1
+NPInputBlock.Text                   = ""
+NPInputBlock.AutoButtonColor        = false
+NPInputBlock.ZIndex                 = 20   -- below controls (22-24) but above underlying cards
 
 -- ============================================================
 --  OPEN / CLOSE
@@ -570,9 +589,6 @@ function E.openNowPlaying(song)
         UI.NPTimeTotal.Text   = E.formatTime(song.duration)
         UI.NPTimeCurrent.Text = "0:00"
         UI.NPProgFill.Size    = UDim2.new(0,0,1,0)
-        if UI.NPProgDot then
-            UI.NPProgDot.Position = UDim2.new(0,-6,0.5,-6)
-        end
         E.buildQueue()
     end
 
