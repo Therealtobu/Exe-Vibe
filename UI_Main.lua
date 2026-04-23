@@ -15,10 +15,10 @@ local UI = E.UI
 
 local cam       = workspace.CurrentCamera
 local vp        = cam.ViewportSize
-local FRAME_W   = math.clamp(math.floor(vp.X * 0.82), 640, 940)
-local raw_h     = math.floor(vp.Y * 0.72)
-local safe_h    = vp.Y - 120  -- extra margin so PlayerBar stays on screen
-local FRAME_H   = math.max(380, math.min(raw_h, math.min(520, safe_h)))
+local FRAME_W   = math.clamp(math.floor(vp.X * 0.82), 580, 900)
+local raw_h     = math.floor(vp.Y * 0.52)
+local safe_h    = vp.Y - 120
+local FRAME_H   = math.max(320, math.min(raw_h, math.min(420, safe_h)))
 local SIDEBAR_W = math.floor(FRAME_W * 0.26)
 local BAR_H     = 58
 
@@ -101,7 +101,7 @@ MainFrame.BorderSizePixel  = 0
 MainFrame.ClipsDescendants = false
 MainFrame.Visible          = false
 MainFrame.ZIndex           = 10
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0,20)
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0,28)
 UI.MainFrame = MainFrame
 
 
@@ -115,7 +115,7 @@ ContentClip.BackgroundTransparency = 1
 ContentClip.BorderSizePixel  = 0
 ContentClip.ClipsDescendants = true
 ContentClip.ZIndex           = 10
-Instance.new("UICorner", ContentClip).CornerRadius = UDim.new(0,20)
+Instance.new("UICorner", ContentClip).CornerRadius = UDim.new(0,28)
 UI.ContentClip = ContentClip
 
 -- ============================================================
@@ -128,6 +128,7 @@ Sidebar.BackgroundColor3 = C.sidebar
 Sidebar.BorderSizePixel  = 0
 Sidebar.ClipsDescendants = true
 Sidebar.ZIndex           = 11
+Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0,28)
 UI.Sidebar = Sidebar
 
 local SbRCover = Instance.new("Frame", Sidebar)
@@ -137,23 +138,25 @@ SbRCover.BackgroundColor3 = C.sidebar
 SbRCover.BorderSizePixel  = 0
 SbRCover.ZIndex           = 11
 
+-- Logo image (standalone at top)
 local LogoBadge = Instance.new("ImageLabel", Sidebar)
-LogoBadge.Size                   = UDim2.new(0,28,0,28)
-LogoBadge.Position               = UDim2.new(0,12,0,14)
+LogoBadge.Size                   = UDim2.new(0,30,0,30)
+LogoBadge.Position               = UDim2.new(0,12,0,12)
 LogoBadge.BackgroundTransparency = 1
 LogoBadge.BorderSizePixel        = 0
 LogoBadge.ZIndex                 = 13
 LogoBadge.Image                  = "rbxassetid://77847099845882"
 LogoBadge.ScaleType              = Enum.ScaleType.Fit
 
+-- "Exvibe" brand name as section header (like image 2's "Masters")
 local LogoText = Instance.new("TextLabel", Sidebar)
-LogoText.Size             = UDim2.new(1,-50,0,28)
-LogoText.Position         = UDim2.new(0,46,0,20)
+LogoText.Size             = UDim2.new(1,-18,0,14)
+LogoText.Position         = UDim2.new(0,12,0,48)
 LogoText.BackgroundTransparency = 1
 LogoText.Text             = "Exvibe"
-LogoText.TextColor3       = C.text
-LogoText.Font             = Enum.Font.GothamBold
-LogoText.TextSize         = 14
+LogoText.TextColor3       = C.subText
+LogoText.Font             = Enum.Font.GothamSemibold
+LogoText.TextSize         = 9
 LogoText.TextXAlignment   = Enum.TextXAlignment.Left
 LogoText.ZIndex           = 13
 
@@ -192,7 +195,7 @@ end
 
 local navButtons = {}
 local navPages   = {"Discovery", "Search", "Library"}
-local navY = 74
+local navY = 68
 for _, name in ipairs(navPages) do
     navButtons[name] = makeNavBtn(name, navY)
     navY = navY + 34
@@ -238,8 +241,8 @@ TopBar.ZIndex           = 12
 UI.TopBar = TopBar
 
 local CloseBtn = Instance.new("ImageButton", TopBar)
-CloseBtn.Size             = UDim2.new(0,30,0,30)
-CloseBtn.Position         = UDim2.new(1,-36,0.5,-15)
+CloseBtn.Size             = UDim2.new(0,28,0,28)
+CloseBtn.Position         = UDim2.new(1,-36,0.5,-14)
 CloseBtn.BackgroundTransparency = 1
 CloseBtn.Image            = "rbxassetid://128680767530455"
 CloseBtn.ScaleType        = Enum.ScaleType.Fit
@@ -248,9 +251,10 @@ CloseBtn.AutoButtonColor  = false
 CloseBtn.ZIndex           = 13
 UI.CloseBtn = CloseBtn
 
+-- Hamburger replaces settings button: placed to the left of X, no background
 local HamBtn = Instance.new("TextButton", TopBar)
-HamBtn.Size             = UDim2.new(0,32,0,32)
-HamBtn.Position         = UDim2.new(1,-72,0.5,-16)
+HamBtn.Size             = UDim2.new(0,30,0,30)
+HamBtn.Position         = UDim2.new(1,-70,0.5,-15)
 HamBtn.BackgroundTransparency = 1
 HamBtn.Text             = "≡"
 HamBtn.TextColor3       = C.text
@@ -982,54 +986,59 @@ UI.PlayerArtist = PlayerArtist
 
 local CTRL_CX = SIDEBAR_W + math.floor((FRAME_W - SIDEBAR_W) * 0.5)
 
-local function makeCtrl(text, absXOff, sz, tsize)
-    sz = sz or 32; tsize = tsize or 15
+local PBAR_ASSET_PREV  = "rbxassetid://82102136991437"
+local PBAR_ASSET_PAUSE = "rbxassetid://97751235710224"
+local PBAR_ASSET_PLAY  = "rbxassetid://81905914153409"
+local PBAR_ASSET_NEXT  = "rbxassetid://111765560089071"
+
+local function makeCtrlImg(assetId, absXOff, sz)
+    sz = sz or 32
     local b = Instance.new("TextButton", PlayerBar)
     b.Size = UDim2.new(0,sz,0,sz)
     b.Position = UDim2.new(0, CTRL_CX + absXOff - math.floor(sz/2), 0.5, -math.floor(sz/2))
     b.BackgroundTransparency = 1
     b.AutoButtonColor = false
     b.BorderSizePixel = 0
-    b.Text = text
-    b.TextColor3 = C.text
-    b.Font = Enum.Font.GothamBold
-    b.TextSize = tsize
+    b.Text = ""
     b.ZIndex = 15
-    return b
+    local img = Instance.new("ImageLabel", b)
+    img.Size = UDim2.new(1,0,1,0)
+    img.BackgroundTransparency = 1
+    img.Image = assetId
+    img.ImageColor3 = C.text
+    img.ZIndex = 16
+    b.MouseButton1Down:Connect(function() E.tween(img,{ImageTransparency=0.45},0.07) end)
+    b.MouseButton1Up:Connect(function()   E.tween(img,{ImageTransparency=0},0.12)    end)
+    return b, img
 end
 
-local BtnPrev = makeCtrl("◀◀", -60, 34, 15)
-local BtnPlay = makeCtrl("▶",    0, 38, 22)
-local BtnNext = makeCtrl("▶▶",  60, 34, 15)
+local BtnPrev, _             = makeCtrlImg(PBAR_ASSET_PREV,  -56, 32)
+local BtnPlay, BtnPlayImg    = makeCtrlImg(PBAR_ASSET_PLAY,    0, 36)  -- starts as Play icon
+local BtnNext, _             = makeCtrlImg(PBAR_ASSET_NEXT,   56, 32)
+
+-- Second image on BtnPlay for pause state (hidden by default)
+local BtnPlayPauseImg = Instance.new("ImageLabel", BtnPlay)
+BtnPlayPauseImg.Size = UDim2.new(1,0,1,0)
+BtnPlayPauseImg.BackgroundTransparency = 1
+BtnPlayPauseImg.Image = PBAR_ASSET_PAUSE
+BtnPlayPauseImg.ImageColor3 = C.text
+BtnPlayPauseImg.ZIndex = 17
+BtnPlayPauseImg.Visible = false
+
 UI.BtnPrev = BtnPrev
 UI.BtnPlay = BtnPlay
+UI.BtnPlayImg = BtnPlayImg          -- play/resume icon
+UI.BtnPlayPauseImg = BtnPlayPauseImg -- pause icon
 UI.BtnNext = BtnNext
-
-local function makeRightBtn(text, xRight, tsize)
-    local b = Instance.new("TextButton", PlayerBar)
-    b.Size = UDim2.new(0,30,0,30)
-    b.Position = UDim2.new(1,xRight,0.5,-15)
-    b.BackgroundTransparency = 1
-    b.AutoButtonColor = false
-    b.BorderSizePixel = 0
-    b.Text = text
-    b.TextColor3 = C.subText
-    b.Font = Enum.Font.GothamBold
-    b.TextSize = tsize or 14
-    b.ZIndex = 15
-    return b
-end
-
-UI.BtnQueue  = makeRightBtn("≡",   -100, 18)
-UI.BtnPeople = makeRightBtn("=+",   -64, 14)
-UI.BtnMore   = makeRightBtn("...",  -32, 14)
 
 function E.updatePlayerBar(song)
     if not song then return end
     UI.PlayerTitle.Text  = song.title
     UI.PlayerArtist.Text = song.artist
     UI.PlayerThumb.Image = song.cover or ""
-    UI.BtnPlay.Text      = "▌▌"
+    -- Switch to pause icon (song just started playing)
+    if UI.BtnPlayImg then UI.BtnPlayImg.Visible = false end
+    if UI.BtnPlayPauseImg then UI.BtnPlayPauseImg.Visible = true end
 end
 
 function E.rebuildSongs()

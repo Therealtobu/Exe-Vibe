@@ -17,9 +17,9 @@ local UIS = game:GetService("UserInputService")
 -- ============================================================
 --  ASSET IDs
 -- ============================================================
-local ASSET_PAUSE   = "rbxassetid://72396954315758"
+local ASSET_PAUSE   = "rbxassetid://97751235710224"
 local ASSET_PLAY    = "rbxassetid://81905914153409"
-local ASSET_PREV    = "rbxassetid://72693785960426"
+local ASSET_PREV    = "rbxassetid://82102136991437"
 local ASSET_NEXT    = "rbxassetid://111765560089071"
 local ASSET_SHUFFLE = "rbxassetid://74222790776317"
 local ASSET_REPEAT  = "rbxassetid://71635659455113"
@@ -311,14 +311,17 @@ UI.NPVolBg       = NPVolBg
 
 local npVolDrag = false
 NPVolBg.InputBegan:Connect(function(inp)
-    if inp.UserInputType == Enum.UserInputType.MouseButton1 then npVolDrag = true end
+    if inp.UserInputType == Enum.UserInputType.MouseButton1
+    or inp.UserInputType == Enum.UserInputType.Touch then npVolDrag = true end
 end)
 UIS.InputEnded:Connect(function(inp)
-    if inp.UserInputType == Enum.UserInputType.MouseButton1 then npVolDrag = false end
+    if inp.UserInputType == Enum.UserInputType.MouseButton1
+    or inp.UserInputType == Enum.UserInputType.Touch then npVolDrag = false end
 end)
 UIS.InputChanged:Connect(function(inp)
     if not npVolDrag then return end
-    if inp.UserInputType == Enum.UserInputType.MouseMovement then
+    if inp.UserInputType == Enum.UserInputType.MouseMovement
+    or inp.UserInputType == Enum.UserInputType.Touch then
         local mx   = UIS:GetMouseLocation().X
         local bx   = NPVolBg.AbsolutePosition.X
         local bw   = NPVolBg.AbsoluteSize.X

@@ -29,7 +29,9 @@ end
 -- ============================================================
 function E.animateCoverFly(fromAbsPos, fromAbsSize, song, npAlreadyOpen)
     task.spawn(function()
-        if not npAlreadyOpen then task.wait(0.32) end
+        -- Wait until the NowPlaying sheet finishes sliding (0.40s) before reading
+        -- AbsolutePosition, otherwise toPos is captured mid-animation → offset bug.
+        if not npAlreadyOpen then task.wait(0.44) end
         local npArt = UI.NPArt
         if not npArt then return end
         local toPos = npArt.AbsolutePosition
@@ -58,7 +60,8 @@ end
 local function playSong(song)
     Eng:play(song)
     E.updatePlayerBar(song)
-    UI.BtnPlay.Text = "▌▌"
+    if UI.BtnPlayImg then UI.BtnPlayImg.Visible = false end
+    if UI.BtnPlayPauseImg then UI.BtnPlayPauseImg.Visible = true end
     setNPPlayState(true)
     if E.State.nowPlayingOpen then
         E.openNowPlaying(song)
@@ -128,11 +131,15 @@ end
 local function togglePlayPause()
     if E.State.isPlaying then
         Eng:pause()
-        UI.BtnPlay.Text = "▶"
+        -- Show play icon, hide pause icon
+        if UI.BtnPlayImg then UI.BtnPlayImg.Visible = true end
+        if UI.BtnPlayPauseImg then UI.BtnPlayPauseImg.Visible = false end
         setNPPlayState(false)
     elseif E.State.isPaused then
         Eng:resume()
-        UI.BtnPlay.Text = "▌▌"
+        -- Show pause icon, hide play icon
+        if UI.BtnPlayImg then UI.BtnPlayImg.Visible = false end
+        if UI.BtnPlayPauseImg then UI.BtnPlayPauseImg.Visible = true end
         setNPPlayState(true)
     elseif E.State.currentSong then
         playSong(E.State.currentSong)
@@ -154,9 +161,7 @@ UI.PlayerThumb.InputBegan:Connect(function(inp)
     end
 end)
 
-UI.BtnQueue.MouseButton1Click:Connect(function()
-    if E.State.currentSong then E.openNowPlaying(E.State.currentSong) end
-end)
+-- BtnQueue removed
 
 -- ============================================================
 --  WINDOW OPEN / CLOSE
@@ -342,6 +347,48 @@ UI.ProgFill.Parent.InputBegan:Connect(function(inp)
         if bw > 0 then
             local frac = math.clamp((inp.Position.X - bx) / bw, 0, 1)
             Eng:seekTo(frac)
+        end
+    end
+end)
+
+-- ============================================================
+--  NOWPLAYING TIMELINE  (drag + click, with Touch support)
+-- ============================================================
+local npProgDragging = false
+UI.NPProgBg.InputBegan:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1
+    or inp.UserInputType == Enum.UserInputType.Touch then
+        npProgDragging = true
+        -- Seek immediately on press (tap-to-seek)
+        local bx = UI.NPProgBg.AbsolutePosition.X
+        local bw = UI.NPProgBg.AbsoluteSize.X
+        if bw > 0 and E.State.currentSong then
+            local frac = math.clamp((inp.Position.X - bx) / bw, 0, 1)
+            Eng:seekTo(frac)
+        end
+    end
+end)
+UserInputService.InputEnded:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1
+    or inp.UserInputType == Enum.UserInputType.Touch then
+        npProgDragging = false
+    end
+end)
+UserInputService.InputChanged:Connect(function(inp)
+    if not npProgDragging then return end
+    if inp.UserInputType == Enum.UserInputType.MouseMovement
+    or inp.UserInputType == Enum.UserInputType.Touch then
+        local bx = UI.NPProgBg.AbsolutePosition.X
+        local bw = UI.NPProgBg.AbsoluteSize.X
+        if bw > 0 and E.State.currentSong then
+            local frac = math.clamp((inp.Position.X - bx) / bw, 0, 1)
+            Eng:seekTo(frac)
+            -- Update UI immediately while dragging
+            UI.NPProgFill.Size = UDim2.new(frac, 0, 1, 0)
+            if UI.NPProgDot then
+                UI.NPProgDot.Position = UDim2.new(frac, -6, 0.5, -6)
+            end
+            UI.NPTimeCurrent.Text = E.formatTime(Eng:getPosition())
         end
     end
 end)

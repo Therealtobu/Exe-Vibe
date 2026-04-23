@@ -185,21 +185,30 @@ local HOLD_TIME = 0.45   -- seconds before menu appears
 local CM = Instance.new("Frame", UI.ScreenGui)
 CM.Name             = "ContextMenu"
 CM.BackgroundColor3 = C.contextBg
-CM.Size             = UDim2.new(0, 218, 0, CM_FULL_H or 260)
+CM.Size             = UDim2.new(0, 200, 0, CM_FULL_H or 260)
 CM.BorderSizePixel  = 0
-CM.ClipsDescendants = false
+CM.ClipsDescendants = true   -- masks CMInner slide-in
 CM.Visible          = false
 CM.ZIndex           = 500
-Instance.new("UICorner", CM).CornerRadius = UDim.new(0, 13)
+Instance.new("UICorner", CM).CornerRadius = UDim.new(0, 20)  -- bolder corners
 local cmStroke = Instance.new("UIStroke", CM)
 cmStroke.Color = C.border; cmStroke.Thickness = 1
 
--- UIScale for Loader.lua-style tab open animation
+-- UIScale for spring-open animation (origin: AnchorPoint 0.5,0.5 set in openCM)
 local CMScale = Instance.new("UIScale", CM)
 CMScale.Scale = 0.85
 
+-- Inner content container — slides from above on open
+local CMInner = Instance.new("Frame", CM)
+CMInner.Name                = "CMInner"
+CMInner.Size                = UDim2.new(1, 0, 1, 0)
+CMInner.Position            = UDim2.new(0, 0, 0, 0)
+CMInner.BackgroundTransparency = 1
+CMInner.BorderSizePixel     = 0
+CMInner.ZIndex              = 500
+
 -- Title (song name)
-local CMTitle = Instance.new("TextLabel", CM)
+local CMTitle = Instance.new("TextLabel", CMInner)
 CMTitle.Size             = UDim2.new(1, -20, 0, 28)
 CMTitle.Position         = UDim2.new(0, 10, 0, 8)
 CMTitle.BackgroundTransparency = 1
@@ -211,7 +220,7 @@ CMTitle.TextXAlignment   = Enum.TextXAlignment.Center
 CMTitle.ZIndex           = 501
 
 -- Two-column top row: Play Next | Play Last
-local CMTopRow = Instance.new("Frame", CM)
+local CMTopRow = Instance.new("Frame", CMInner)
 CMTopRow.Size             = UDim2.new(1, -16, 0, 34)
 CMTopRow.Position         = UDim2.new(0, 8, 0, 40)
 CMTopRow.BackgroundTransparency = 1
@@ -238,7 +247,7 @@ local CMBtnPlayNext = makeTopBtn("Play Next", "⏭", 0,   0)
 local CMBtnPlayLast = makeTopBtn("Play Last", "⬇", 0.5, 4)
 
 -- Thin divider
-local CMDiv = Instance.new("Frame", CM)
+local CMDiv = Instance.new("Frame", CMInner)
 CMDiv.Size             = UDim2.new(1, -16, 0, 1)
 CMDiv.Position         = UDim2.new(0, 8, 0, 80)
 CMDiv.BackgroundColor3 = C.border
@@ -256,7 +265,7 @@ local CM_ROWS = {
 }
 local cmBtns = {}
 for i, row in ipairs(CM_ROWS) do
-    local btn = Instance.new("TextButton", CM)
+    local btn = Instance.new("TextButton", CMInner)
     btn.Name             = "CMRow" .. i
     btn.Size             = UDim2.new(1, -16, 0, 36)
     btn.Position         = UDim2.new(0, 8, 0, 86 + (i-1) * 38)
@@ -299,53 +308,83 @@ local CM_FULL_H = 91 + #CM_ROWS * 38 + 8
 
 -- ── Show / hide helpers ──
 local cmSong = nil
+local lastCardOriginX, lastCardOriginY = 0, 0  -- used by closeCM to shrink back
 
 local function openCM(song, card)
-    cmSong        = song
-    CMTitle.Text  = song.title
+    cmSong       = song
+    CMTitle.Text = song.title
 
-    local scrW  = UI.ScreenGui.AbsoluteSize.X
-    local scrH  = UI.ScreenGui.AbsoluteSize.Y
-    local cPos  = card.AbsolutePosition
-    local cSz   = card.AbsoluteSize
+    local scrW = UI.ScreenGui.AbsoluteSize.X
+    local scrH = UI.ScreenGui.AbsoluteSize.Y
+    local cPos = card.AbsolutePosition
+    local cSz  = card.AbsoluteSize
 
+    -- Final resting position (clamped to screen)
     local mx = cPos.X + cSz.X * 0.2
     local my = cPos.Y + cSz.Y * 0.6
-
-    mx = math.clamp(mx, 8, scrW - 226)
+    mx = math.clamp(mx, 8, scrW - 208)
     my = math.clamp(my, 8, scrH - CM_FULL_H - 8)
 
-    CM.Position       = UDim2.new(0, mx, 0, my)
-    CM.Size           = UDim2.new(0, 218, 0, CM_FULL_H)
-    CM.Visible        = true
+    -- Origin = center of the card cover (where the menu "grows from")
+    local ox = math.clamp(cPos.X + cSz.X * 0.5 - 100, 8, scrW - 208)
+    local oy = math.clamp(cPos.Y + cSz.Y * 0.5 - CM_FULL_H * 0.5, 8, scrH - CM_FULL_H - 8)
+    lastCardOriginX = ox
+    lastCardOriginY = oy
+
+    -- Reset inner content to above-clip position
+    CMInner.Position = UDim2.new(0, 0, 0, -28)
+
+    CM.Size           = UDim2.new(0, 200, 0, CM_FULL_H)
+    CM.Position       = UDim2.new(0, ox, 0, oy)  -- start at card origin
     CM.BackgroundTransparency = 0.08
-    -- Loader.lua tab open animation: Scale 1.2 → 1, Exponential Out, 0.8s
-    CMScale.Scale = 1.2
+    CM.Visible        = true
+
+    -- Scale spring: 0.25 → 1.0 (Back Out for satisfying pop)
+    CMScale.Scale = 0.25
     TS:Create(CMScale,
-        TweenInfo.new(0.8, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+        TweenInfo.new(0.38, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
         { Scale = 1.0 }
     ):Play()
-    -- Subtle Y slide (10px → 0)
-    CM.Position = UDim2.new(0, mx, 0, my + 10)
+
+    -- Slide to final position
     TS:Create(CM,
-        TweenInfo.new(0.45, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+        TweenInfo.new(0.32, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
         { Position = UDim2.new(0, mx, 0, my) }
+    ):Play()
+
+    -- Inner content drifts down from above (ClipsDescendants on CM masks the overshoot)
+    TS:Create(CMInner,
+        TweenInfo.new(0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+        { Position = UDim2.new(0, 0, 0, 0) }
     ):Play()
 end
 
 local function closeCM()
     if not CM.Visible then return end
+
+    -- Content drifts back up
+    TS:Create(CMInner,
+        TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.In),
+        { Position = UDim2.new(0, 0, 0, -20) }
+    ):Play()
+    -- Scale shrinks back toward card origin
     TS:Create(CMScale,
-        TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
-        { Scale = 0.85 }
+        TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+        { Scale = 0.2 }
     ):Play()
     TS:Create(CM,
-        TweenInfo.new(0.18, Enum.EasingStyle.Quart),
-        { BackgroundTransparency = 1 }
+        TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+        {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, lastCardOriginX, 0, lastCardOriginY),
+        }
     ):Play()
-    task.delay(0.22, function()
+
+    task.delay(0.24, function()
         CM.Visible = false
         CM.BackgroundTransparency = 0.08
+        CMScale.Scale = 0.85
+        CMInner.Position = UDim2.new(0, 0, 0, 0)
         cmSong = nil
     end)
 end
@@ -421,8 +460,68 @@ UIS.InputBegan:Connect(function(inp)
     if p.X < cp.X or p.X > cp.X + cs.X
     or p.Y < cp.Y or p.Y > cp.Y + cs.Y then
         closeCM()
+        hideHoldFlare()
     end
 end)
+
+-- ── Hold flare overlay (accent color bloom from top) ──
+local HoldFlare = Instance.new("Frame", UI.ScreenGui)
+HoldFlare.Name                = "HoldFlare"
+HoldFlare.Size                = UDim2.new(1, 0, 0.55, 0)   -- top 55% of screen
+HoldFlare.Position            = UDim2.new(0, 0, 0, 0)
+HoldFlare.BackgroundColor3    = C.accentBlue
+HoldFlare.BackgroundTransparency = 1
+HoldFlare.BorderSizePixel     = 0
+HoldFlare.ZIndex              = 8   -- above Backdrop(9)? No — below MainFrame(10)
+HoldFlare.Visible             = false
+-- Gradient: opaque at top → fully transparent at bottom
+local hfGrad = Instance.new("UIGradient", HoldFlare)
+hfGrad.Rotation = 90
+hfGrad.Transparency = NumberSequence.new({
+    NumberSequenceKeypoint.new(0,    0.35),
+    NumberSequenceKeypoint.new(0.45, 0.72),
+    NumberSequenceKeypoint.new(1,    1.0),
+})
+
+local hfActiveCard = nil   -- card currently being held
+
+local function showHoldFlare(song, card)
+    hfActiveCard = card
+    local color = (song and song.accentColor) or C.accentBlue
+    HoldFlare.BackgroundColor3   = color
+    HoldFlare.BackgroundTransparency = 1
+    HoldFlare.Visible = true
+    TS:Create(HoldFlare,
+        TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+        { BackgroundTransparency = 0 }
+    ):Play()
+    -- Scale the card up slightly (press-to-zoom effect)
+    local sc = card:FindFirstChildOfClass("UIScale")
+    if not sc then sc = Instance.new("UIScale", card) ; sc.Scale = 1.0 end
+    TS:Create(sc,
+        TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+        { Scale = 1.10 }
+    ):Play()
+end
+
+local function hideHoldFlare()
+    TS:Create(HoldFlare,
+        TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+        { BackgroundTransparency = 1 }
+    ):Play()
+    task.delay(0.24, function() HoldFlare.Visible = false end)
+    -- Scale the card back down
+    if hfActiveCard then
+        local sc = hfActiveCard:FindFirstChildOfClass("UIScale")
+        if sc then
+            TS:Create(sc,
+                TweenInfo.new(0.20, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+                { Scale = 1.0 }
+            ):Play()
+        end
+        hfActiveCard = nil
+    end
+end
 
 -- ── Attach hold detection to one card ──
 local function attachHold(songId, card)
@@ -439,7 +538,10 @@ local function attachHold(songId, card)
             for _, s in ipairs(E.MusicDatabase) do
                 if s.id == songId then song = s break end
             end
-            if song then openCM(song, card) end
+            if song then
+                showHoldFlare(song, card)
+                openCM(song, card)
+            end
         end)
     end)
 
@@ -448,6 +550,7 @@ local function attachHold(songId, card)
         and inp.UserInputType ~= Enum.UserInputType.Touch then return end
         holding = false
         if thread then task.cancel(thread); thread = nil end
+        hideHoldFlare()
     end)
 end
 
