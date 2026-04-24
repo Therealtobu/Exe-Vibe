@@ -212,15 +212,16 @@ SbDiv.ZIndex           = 12
 sbLabel("PINS", navY+12)
 local PinBtn = makeNavBtn("Playlist", navY+32)
 local PinIco = Instance.new("ImageLabel", PinBtn)
-PinIco.Size                   = UDim2.new(0,20,0,20)
-PinIco.Position               = UDim2.new(0,8,0.5,-10)
+PinIco.Size                   = UDim2.new(0,22,0,22)
+PinIco.Position               = UDim2.new(0,10,0.5,-11)
 PinIco.BackgroundTransparency = 1
 PinIco.BorderSizePixel        = 0
 PinIco.ZIndex                 = 13
-PinIco.Image                  = "rbxassetid://108651088623287"
+PinIco.Image                  = "rbxassetid://84882204830861"
 PinIco.ScaleType              = Enum.ScaleType.Fit
--- Push text right so it doesn't overlap icon
-PinBtn:FindFirstChildOfClass("UIPadding").PaddingLeft = UDim.new(0, 34)
+-- Đẩy chữ sang phải để logo nằm bên trái chữ với khoảng cách nhỏ
+local pp = PinBtn:FindFirstChildOfClass("UIPadding")
+if pp then pp.PaddingLeft = UDim.new(0, 38) end
 
 -- ============================================================
 --  CONTENT AREA
@@ -234,42 +235,37 @@ ContentArea.ClipsDescendants = true
 ContentArea.ZIndex           = 11
 UI.ContentArea = ContentArea
 
-local TopBar = Instance.new("Frame", ContentArea)
-TopBar.Size             = UDim2.new(1,0,0,46)
-TopBar.BackgroundTransparency = 1
-TopBar.ZIndex           = 12
-UI.TopBar = TopBar
-
-local CloseBtn = Instance.new("ImageButton", TopBar)
+-- Floating Close button (parented to MainFrame so it overlays all content)
+local CloseBtn = Instance.new("ImageButton", MainFrame)
 CloseBtn.Size             = UDim2.new(0,28,0,28)
-CloseBtn.Position         = UDim2.new(1,-36,0.5,-14)
+CloseBtn.Position         = UDim2.new(1,-14,0,-14)
+CloseBtn.AnchorPoint      = Vector2.new(1,0)
 CloseBtn.BackgroundTransparency = 1
 CloseBtn.Image            = "rbxassetid://128680767530455"
 CloseBtn.ScaleType        = Enum.ScaleType.Fit
 CloseBtn.BorderSizePixel  = 0
 CloseBtn.AutoButtonColor  = false
-CloseBtn.ZIndex           = 13
+CloseBtn.ZIndex           = 30
 UI.CloseBtn = CloseBtn
 
--- Hamburger replaces settings button: placed to the left of X, no background
-local HamBtn = Instance.new("TextButton", TopBar)
-HamBtn.Size             = UDim2.new(0,30,0,30)
-HamBtn.Position         = UDim2.new(1,-70,0.5,-15)
+-- Floating Hamburger button (parented to MainFrame, left of X)
+local HamBtn = Instance.new("ImageButton", MainFrame)
+HamBtn.Size             = UDim2.new(0,28,0,28)
+HamBtn.Position         = UDim2.new(1,-48,0,-14)
+HamBtn.AnchorPoint      = Vector2.new(1,0)
 HamBtn.BackgroundTransparency = 1
-HamBtn.Text             = "≡"
-HamBtn.TextColor3       = C.text
-HamBtn.Font             = Enum.Font.GothamBold
-HamBtn.TextSize         = 18
+HamBtn.Image            = "rbxassetid://79426824307754"
+HamBtn.ScaleType        = Enum.ScaleType.Fit
 HamBtn.BorderSizePixel  = 0
 HamBtn.AutoButtonColor  = false
-HamBtn.ZIndex           = 13
+HamBtn.ZIndex           = 30
 UI.HamBtn = HamBtn
 
--- Page container (below TopBar)
+-- Page container fills full ContentArea height (no TopBar offset needed)
 local PageContainer = Instance.new("Frame", ContentArea)
 PageContainer.Name             = "PageContainer"
-PageContainer.Size             = UDim2.new(1,0,1,-46)
-PageContainer.Position         = UDim2.new(0,0,0,46)
+PageContainer.Size             = UDim2.new(1,0,1,0)
+PageContainer.Position         = UDim2.new(0,0,0,0)
 PageContainer.BackgroundTransparency = 1
 PageContainer.ClipsDescendants = true
 PageContainer.ZIndex           = 11

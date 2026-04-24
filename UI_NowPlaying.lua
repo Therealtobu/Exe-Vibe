@@ -17,9 +17,9 @@ local UIS = game:GetService("UserInputService")
 -- ============================================================
 --  ASSET IDs
 -- ============================================================
-local ASSET_PAUSE   = "rbxassetid://72396954315758"
-local ASSET_PLAY    = "rbxassetid://118586721126452"
-local ASSET_PREV    = "rbxassetid://72693785960426"
+local ASSET_PAUSE   = "rbxassetid://97751235710224"
+local ASSET_PLAY    = "rbxassetid://81905914153409"
+local ASSET_PREV    = "rbxassetid://82102136991437"
 local ASSET_NEXT    = "rbxassetid://111765560089071"
 local ASSET_SHUFFLE = "rbxassetid://74222790776317"
 local ASSET_REPEAT  = "rbxassetid://71635659455113"
@@ -119,35 +119,6 @@ ArtStroke.Color     = C.border
 ArtStroke.Thickness = 1.5
 ArtStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
--- Exvibe badge overlay on bottom of cover
-local ExvibeBadge = Instance.new("Frame", LeftPanel)
-ExvibeBadge.Name                  = "ExvibeBadge"
-ExvibeBadge.Size                  = UDim2.new(0, 86, 0, 22)
-ExvibeBadge.Position              = UDim2.new(0, ART_X + 8, 0, ART_Y + ART_SIZE - 30)
-ExvibeBadge.BackgroundColor3      = Color3.fromRGB(0, 0, 0)
-ExvibeBadge.BackgroundTransparency = 0.30
-ExvibeBadge.BorderSizePixel       = 0
-ExvibeBadge.ZIndex                = 23
-Instance.new("UICorner", ExvibeBadge).CornerRadius = UDim.new(1, 0)
-
-local BadgeLogo = Instance.new("ImageLabel", ExvibeBadge)
-BadgeLogo.Size                   = UDim2.new(0, 14, 0, 14)
-BadgeLogo.Position               = UDim2.new(0, 6, 0.5, -7)
-BadgeLogo.BackgroundTransparency = 1
-BadgeLogo.Image                  = "rbxassetid://77847099845882"
-BadgeLogo.ScaleType              = Enum.ScaleType.Fit
-BadgeLogo.ZIndex                 = 24
-
-local BadgeText = Instance.new("TextLabel", ExvibeBadge)
-BadgeText.Size             = UDim2.new(1, -24, 1, 0)
-BadgeText.Position         = UDim2.new(0, 22, 0, 0)
-BadgeText.BackgroundTransparency = 1
-BadgeText.Text             = "Exvibe"
-BadgeText.TextColor3       = Color3.new(1, 1, 1)
-BadgeText.Font             = Enum.Font.GothamSemibold
-BadgeText.TextSize         = 11
-BadgeText.TextXAlignment   = Enum.TextXAlignment.Left
-BadgeText.ZIndex           = 24
 
 local NPTitle = Instance.new("TextLabel", LeftPanel)
 NPTitle.Size             = UDim2.new(1,-INFO_PAD*2,0,22)

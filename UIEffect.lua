@@ -463,15 +463,15 @@ UIS.InputBegan:Connect(function(inp)
     end
 end)
 
--- ── Hold flare overlay (accent color bloom, clipped inside the main UI frame) ──
-local HoldFlare = Instance.new("Frame", UI.MainFrame)
+-- ── Hold flare overlay (accent color bloom, clipped inside ContentClip) ──
+local HoldFlare = Instance.new("Frame", UI.ContentClip)
 HoldFlare.Name                = "HoldFlare"
-HoldFlare.Size                = UDim2.new(1, 0, 0.55, 0)   -- top 55% of MainFrame
+HoldFlare.Size                = UDim2.new(1, 0, 1, 0)
 HoldFlare.Position            = UDim2.new(0, 0, 0, 0)
 HoldFlare.BackgroundColor3    = C.accentBlue
 HoldFlare.BackgroundTransparency = 1
 HoldFlare.BorderSizePixel     = 0
-HoldFlare.ZIndex              = 18   -- above content (11-14) but below Sheet (20)
+HoldFlare.ZIndex              = 18
 HoldFlare.Visible             = false
 -- Gradient: opaque at top → fully transparent at bottom
 local hfGrad = Instance.new("UIGradient", HoldFlare)
@@ -491,30 +491,29 @@ local function showHoldFlare(song, card)
     HoldFlare.BackgroundTransparency = 1
     HoldFlare.Visible = true
     TS:Create(HoldFlare,
-        TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-        { BackgroundTransparency = 0 }
+        TweenInfo.new(0.12, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+        { BackgroundTransparency = 0.72 }
     ):Play()
-    -- Scale the card up slightly (press-to-zoom effect)
+    -- Scale card up nhẹ
     local sc = card:FindFirstChildOfClass("UIScale")
     if not sc then sc = Instance.new("UIScale", card) ; sc.Scale = 1.0 end
     TS:Create(sc,
-        TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-        { Scale = 1.10 }
+        TweenInfo.new(0.12, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+        { Scale = 1.06 }
     ):Play()
 end
 
 local function hideHoldFlare()
     TS:Create(HoldFlare,
-        TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+        TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
         { BackgroundTransparency = 1 }
     ):Play()
-    task.delay(0.24, function() HoldFlare.Visible = false end)
-    -- Scale the card back down
+    task.delay(0.20, function() HoldFlare.Visible = false end)
     if hfActiveCard then
         local sc = hfActiveCard:FindFirstChildOfClass("UIScale")
         if sc then
             TS:Create(sc,
-                TweenInfo.new(0.20, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+                TweenInfo.new(0.15, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
                 { Scale = 1.0 }
             ):Play()
         end
@@ -522,35 +521,26 @@ local function hideHoldFlare()
     end
 end
 
--- ── Attach hold detection to one card ──
+-- ── Attach tap detection to one card ──
 local function attachHold(songId, card)
-    local thread  = nil
-    local holding = false
-
     card.InputBegan:Connect(function(inp)
         if inp.UserInputType ~= Enum.UserInputType.MouseButton1
         and inp.UserInputType ~= Enum.UserInputType.Touch then return end
-        -- Block hold gesture when NowPlaying is open
+        -- Block khi NowPlaying đang mở
         if E.State.nowPlayingOpen then return end
-        holding = true
-        thread  = task.delay(HOLD_TIME, function()
-            if not holding then return end
-            local song
-            for _, s in ipairs(E.MusicDatabase) do
-                if s.id == songId then song = s break end
-            end
-            if song then
-                showHoldFlare(song, card)
-                openCM(song, card)
-            end
-        end)
+        local song
+        for _, s in ipairs(E.MusicDatabase) do
+            if s.id == songId then song = s break end
+        end
+        if song then
+            showHoldFlare(song, card)
+            openCM(song, card)
+        end
     end)
 
     card.InputEnded:Connect(function(inp)
         if inp.UserInputType ~= Enum.UserInputType.MouseButton1
         and inp.UserInputType ~= Enum.UserInputType.Touch then return end
-        holding = false
-        if thread then task.cancel(thread); thread = nil end
         hideHoldFlare()
     end)
 end
